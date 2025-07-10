@@ -86,6 +86,7 @@ export function transformMiddleware(
   // check if public dir is inside root dir
   const { root, publicDir } = server.config
   const publicDirInRoot = publicDir.startsWith(withTrailingSlash(root))
+  //'/public/'
   const publicPath = `${publicDir.slice(root.length)}/`
 
   return async function viteTransformMiddleware(req, res, next) {

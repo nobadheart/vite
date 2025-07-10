@@ -27,7 +27,7 @@ const windowsSlashRE = /\\/g
 export function slash(p: string): string {
   return p.replace(windowsSlashRE, '/')
 }
-
+// 匹配的是 URL 中从 ? 或 # 开始到字符串末尾的部分。 清理 URL 中的查询参数 (?) 或哈希片段 (#) 及其后面的内容
 const postfixRE = /[?#].*$/
 export function cleanUrl(url: string): string {
   return url.replace(postfixRE, '')

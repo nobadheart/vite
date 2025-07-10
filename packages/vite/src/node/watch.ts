@@ -13,6 +13,7 @@ export function getResolvedOutDirs(
   outDir: string,
   outputOptions: OutputOptions[] | OutputOptions | undefined,
 ): Set<string> {
+  // path.resolve(‘/cli’, 'dist') => '/cli/dist'
   const resolvedOutDir = path.resolve(root, outDir)
   if (!outputOptions) return new Set([resolvedOutDir])
 

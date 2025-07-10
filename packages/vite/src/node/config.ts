@@ -1265,6 +1265,7 @@ export async function resolveConfig(
       : () => false
 
   const { publicDir } = config
+  // 处理静态资源的dir   path.resolve(‘/root’, ‘public’)   /root/public
   const resolvedPublicDir =
     publicDir !== false && publicDir !== ''
       ? normalizePath(

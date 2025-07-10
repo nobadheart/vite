@@ -285,6 +285,7 @@ export const virtualModulePrefix = 'virtual-module:'
 const knownJsSrcRE =
   /\.(?:[jt]sx?|m[jt]s|vue|marko|svelte|astro|imba|mdx)(?:$|\?)/
 export const isJSRequest = (url: string): boolean => {
+  // /src/main.vue?type=script
   url = cleanUrl(url)
   if (knownJsSrcRE.test(url)) {
     return true
@@ -298,7 +299,7 @@ export const isJSRequest = (url: string): boolean => {
 const knownTsRE = /\.(?:ts|mts|cts|tsx)(?:$|\?)/
 export const isTsRequest = (url: string): boolean => knownTsRE.test(url)
 
-const importQueryRE = /(\?|&)import=?(?:&|$)/
+const importQueryRE = /(\?|&)import=?(?:&|$)/ // 是否有?import 查询字段
 const directRequestRE = /(\?|&)direct=?(?:&|$)/
 const internalPrefixes = [
   FS_PREFIX,

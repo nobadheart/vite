@@ -72,7 +72,7 @@ export function servePublicMiddleware(
     let filePath = cleanUrl(url)
     if (filePath.indexOf('%') !== -1) {
       try {
-        filePath = decodeURI(filePath)
+        filePath = decodeURI(filePath) // 规范化路径
       } catch {
         /* malform uri */
       }

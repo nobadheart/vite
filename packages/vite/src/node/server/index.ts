@@ -432,6 +432,7 @@ export async function _createServer(
     previousEnvironments?: Record<string, DevEnvironment>
   },
 ): Promise<ViteDevServer> {
+  // 处理用户传入的 inlineConfig 和 配置文件
   const config = await resolveConfig(inlineConfig, 'serve')
 
   const initPublicFilesPromise = initPublicFiles(config)
@@ -440,11 +441,13 @@ export async function _createServer(
   const httpsOptions = await resolveHttpsConfig(config.server.https)
   const { middlewareMode } = serverConfig
 
+  // 处理 outDir目录 cli/dist
   const resolvedOutDirs = getResolvedOutDirs(
     config.root,
     config.build.outDir,
     config.build.rollupOptions.output,
   )
+  //true
   const emptyOutDir = resolveEmptyOutDir(
     config.build.emptyOutDir,
     config.root,
@@ -457,6 +460,7 @@ export async function _createServer(
     },
     resolvedOutDirs,
     emptyOutDir,
+    // /cli/node_modules/.vite
     config.cacheDir,
   )
 
@@ -468,6 +472,7 @@ export async function _createServer(
   const ws = createWebSocketServer(httpServer, config, httpsOptions)
 
   const publicFiles = await initPublicFilesPromise
+  // '/cli/public
   const { publicDir } = config
 
   if (httpServer) {

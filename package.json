@@ -95,7 +95,6 @@
       "eslint --cache --fix"
     ]
   },
-  "packageManager": "pnpm@9.15.3",
   "pnpm": {
     "overrides": {
       "vite": "workspace:*"
