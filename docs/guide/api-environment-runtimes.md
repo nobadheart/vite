@@ -1,7 +1,9 @@
 # Environment API for Runtimes
 
-:::warning Experimental
-Environment API is experimental. We'll keep the APIs stable during Vite 6 to let the ecosystem experiment and build on top of it. We're planning to stabilize these new APIs with potential breaking changes in Vite 7.
+:::info Release Candidate
+The Environment API is generally in the release candidate phase. We'll maintain stability in the APIs between major releases to allow the ecosystem to experiment and build upon them. However, note that [some specific APIs](/changes/#considering) are still considered experimental.
+
+We plan to stabilize these new APIs (with potential breaking changes) in a future major release once downstream projects have had time to experiment with the new features and validate them.
 
 Resources:
 
@@ -304,7 +306,7 @@ function createWorkerEnvironment(name, config, context) {
   const handlerToWorkerListener = new WeakMap()
 
   const workerHotChannel = {
-    send: (data) => w.postMessage(data),
+    send: (data) => worker.postMessage(data),
     on: (event, handler) => {
       if (event === 'connection') return
 
@@ -312,20 +314,20 @@ function createWorkerEnvironment(name, config, context) {
         if (value.type === 'custom' && value.event === event) {
           const client = {
             send(payload) {
-              w.postMessage(payload)
+              worker.postMessage(payload)
             },
           }
           handler(value.data, client)
         }
       }
       handlerToWorkerListener.set(handler, listener)
-      w.on('message', listener)
+      worker.on('message', listener)
     },
     off: (event, handler) => {
       if (event === 'connection') return
       const listener = handlerToWorkerListener.get(handler)
       if (listener) {
-        w.off('message', listener)
+        worker.off('message', listener)
         handlerToWorkerListener.delete(handler)
       }
     },

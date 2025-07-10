@@ -25,12 +25,13 @@ import {
 import {
   ssrDynamicImportKey,
   ssrExportAllKey,
+  ssrExportNameKey,
   ssrImportKey,
   ssrImportMetaKey,
   ssrModuleExportsKey,
 } from './constants'
 import { hmrLogger, silentConsole } from './hmrLogger'
-import { createHMRHandler } from './hmrHandler'
+import { createHMRHandlerForRunner } from './hmrHandler'
 import { enableSourceMapSupport } from './sourcemap/index'
 import { ESModulesEvaluator } from './esmEvaluator'
 
@@ -83,7 +84,7 @@ export class ModuleRunner {
           'HMR is not supported by this runner transport, but `hmr` option was set to true',
         )
       }
-      this.transport.connect(createHMRHandler(this))
+      this.transport.connect(createHMRHandlerForRunner(this))
     } else {
       this.transport.connect?.()
     }
@@ -405,6 +406,12 @@ export class ModuleRunner {
       [ssrDynamicImportKey]: dynamicRequest,
       [ssrModuleExportsKey]: exports,
       [ssrExportAllKey]: (obj: any) => exportAll(exports, obj),
+      [ssrExportNameKey]: (name, getter) =>
+        Object.defineProperty(exports, name, {
+          enumerable: true,
+          configurable: true,
+          get: getter,
+        }),
       [ssrImportMetaKey]: meta,
     }
 
@@ -429,7 +436,7 @@ function exportAll(exports: any, sourceModule: any) {
     return
 
   for (const key in sourceModule) {
-    if (key !== 'default' && key !== '__esModule') {
+    if (key !== 'default' && key !== '__esModule' && !(key in exports)) {
       try {
         Object.defineProperty(exports, key, {
           enumerable: true,

@@ -1,4 +1,3 @@
-/* eslint-disable n/no-extraneous-import */
 import path from 'node:path'
 import crypto from 'node:crypto'
 import { createRequire } from 'node:module'
@@ -10,16 +9,8 @@ import type {
   HtmlTagDescriptor,
   Plugin,
   ResolvedConfig,
+  Rollup,
 } from 'vite'
-import type {
-  NormalizedOutputOptions,
-  OutputAsset,
-  OutputBundle,
-  OutputChunk,
-  OutputOptions,
-  PreRenderedChunk,
-  RenderedChunk,
-} from 'rollup'
 import type {
   PluginItem as BabelPlugin,
   types as BabelTypes,
@@ -99,7 +90,7 @@ function joinUrlSegments(a: string, b: string): string {
   if (!a || !b) {
     return a || b || ''
   }
-  if (a[a.length - 1] === '/') {
+  if (a.endsWith('/')) {
     a = a.substring(0, a.length - 1)
   }
   if (b[0] !== '/') {
@@ -164,6 +155,8 @@ function viteLegacyPlugin(options: Options = {}): Plugin[] {
   const isDebug =
     debugFlags.includes('vite:*') || debugFlags.includes('vite:legacy')
 
+  const assumptions = options.assumptions || {}
+
   const facadeToLegacyChunkMap = new Map()
   const facadeToLegacyPolyfillMap = new Map()
   const facadeToModernPolyfillMap = new Map()
@@ -172,7 +165,7 @@ function viteLegacyPlugin(options: Options = {}): Plugin[] {
   // When discovering polyfills in `renderChunk`, the hook may be non-deterministic, so we group the
   // modern and legacy polyfills in a sorted chunks map for each rendered outputs before merging them.
   const outputToChunkFileNameToPolyfills = new WeakMap<
-    NormalizedOutputOptions,
+    Rollup.NormalizedOutputOptions,
     Map<string, { modern: Set<string>; legacy: Set<string> }> | null
   >()
 
@@ -267,6 +260,13 @@ function viteLegacyPlugin(options: Options = {}): Plugin[] {
           ),
         )
       }
+      if (config.isWorker) {
+        config.logger.warn(
+          colors.yellow(
+            `plugin-legacy should not be passed to 'worker.plugins'. Pass to 'plugins' instead. Note that generating legacy chunks for workers are not supported by plugin-legacy.`,
+          ),
+        )
+      }
     },
   }
 
@@ -331,6 +331,7 @@ function viteLegacyPlugin(options: Options = {}): Plugin[] {
         await detectPolyfills(
           `Promise.resolve(); Promise.all();`,
           targets,
+          assumptions,
           legacyPolyfills,
         )
       }
@@ -395,10 +396,10 @@ function viteLegacyPlugin(options: Options = {}): Plugin[] {
       const getLegacyOutputFileName = (
         fileNames:
           | string
-          | ((chunkInfo: PreRenderedChunk) => string)
+          | ((chunkInfo: Rollup.PreRenderedChunk) => string)
           | undefined,
         defaultFileName = '[name]-legacy-[hash].js',
-      ): string | ((chunkInfo: PreRenderedChunk) => string) => {
+      ): string | ((chunkInfo: Rollup.PreRenderedChunk) => string) => {
         if (!fileNames) {
           return path.posix.join(config.build.assetsDir, defaultFileName)
         }
@@ -427,8 +428,8 @@ function viteLegacyPlugin(options: Options = {}): Plugin[] {
       }
 
       const createLegacyOutput = (
-        options: OutputOptions = {},
-      ): OutputOptions => {
+        options: Rollup.OutputOptions = {},
+      ): Rollup.OutputOptions => {
         return {
           ...options,
           format: 'system',
@@ -457,7 +458,7 @@ function viteLegacyPlugin(options: Options = {}): Plugin[] {
         return null
       }
 
-      // On first run, intialize the map with sorted chunk file names
+      // On first run, initialize the map with sorted chunk file names
       let chunkFileNameToPolyfills = outputToChunkFileNameToPolyfills.get(opts)
       if (chunkFileNameToPolyfills == null) {
         chunkFileNameToPolyfills = new Map()
@@ -483,7 +484,12 @@ function viteLegacyPlugin(options: Options = {}): Plugin[] {
           genModern
         ) {
           // analyze and record modern polyfills
-          await detectPolyfills(raw, modernTargets, polyfillsDiscovered.modern)
+          await detectPolyfills(
+            raw,
+            modernTargets,
+            assumptions,
+            polyfillsDiscovered.modern,
+          )
         }
 
         const ms = new MagicString(raw)
@@ -548,6 +554,7 @@ function viteLegacyPlugin(options: Options = {}): Plugin[] {
         compact: !!config.build.minify,
         sourceMaps,
         inputSourceMap: undefined,
+        assumptions,
         presets: [
           // forcing our plugin to run before preset-env by wrapping it in a
           // preset so we can catch the injected import statements...
@@ -728,6 +735,7 @@ function viteLegacyPlugin(options: Options = {}): Plugin[] {
 export async function detectPolyfills(
   code: string,
   targets: any,
+  assumptions: Record<string, boolean>,
   list: Set<string>,
 ): Promise<void> {
   const babel = await loadBabel()
@@ -736,6 +744,7 @@ export async function detectPolyfills(
     babelrc: false,
     configFile: false,
     compact: false,
+    assumptions,
     presets: [
       [
         (await import('@babel/preset-env')).default,
@@ -780,11 +789,11 @@ function createBabelPresetEnvOptions(
 async function buildPolyfillChunk(
   mode: string,
   imports: Set<string>,
-  bundle: OutputBundle,
+  bundle: Rollup.OutputBundle,
   facadeToChunkMap: Map<string, string>,
   buildOptions: BuildOptions,
   format: 'iife' | 'es',
-  rollupOutputOptions: NormalizedOutputOptions,
+  rollupOutputOptions: Rollup.NormalizedOutputOptions,
   excludeSystemJS?: boolean,
   prependModenChunkLegacyGuard?: boolean,
 ) {
@@ -811,7 +820,9 @@ async function buildPolyfillChunk(
         },
         output: {
           format,
+          hashCharacters: rollupOutputOptions.hashCharacters,
           entryFileNames: rollupOutputOptions.entryFileNames,
+          sourcemapBaseUrl: rollupOutputOptions.sourcemapBaseUrl,
         },
       },
     },
@@ -832,7 +843,7 @@ async function buildPolyfillChunk(
   if (!('output' in _polyfillChunk)) return
   const polyfillChunk = _polyfillChunk.output.find(
     (chunk) => chunk.type === 'chunk' && chunk.isEntry,
-  ) as OutputChunk
+  ) as Rollup.OutputChunk
 
   // associate the polyfill chunk to every entry chunk so that we can retrieve
   // the polyfill filename in index html transform
@@ -850,7 +861,7 @@ async function buildPolyfillChunk(
       (chunk) =>
         chunk.type === 'asset' &&
         chunk.fileName === polyfillChunk.sourcemapFileName,
-    ) as OutputAsset | undefined
+    ) as Rollup.OutputAsset | undefined
     if (polyfillChunkMapAsset) {
       bundle[polyfillChunk.sourcemapFileName] = polyfillChunkMapAsset
     }
@@ -903,13 +914,16 @@ function prependModenChunkLegacyGuardPlugin(): Plugin {
   }
 }
 
-function isLegacyChunk(chunk: RenderedChunk, options: NormalizedOutputOptions) {
+function isLegacyChunk(
+  chunk: Rollup.RenderedChunk,
+  options: Rollup.NormalizedOutputOptions,
+) {
   return options.format === 'system' && chunk.fileName.includes('-legacy')
 }
 
 function isLegacyBundle(
-  bundle: OutputBundle,
-  options: NormalizedOutputOptions,
+  bundle: Rollup.OutputBundle,
+  options: Rollup.NormalizedOutputOptions,
 ) {
   if (options.format === 'system') {
     const entryChunk = Object.values(bundle).find(
@@ -967,22 +981,25 @@ function wrapIIFEBabelPlugin(): BabelPlugin {
   }
 }
 
-const hash =
-  // eslint-disable-next-line n/no-unsupported-features/node-builtins -- crypto.hash is supported in Node 21.7.0+, 20.12.0+
-  crypto.hash ??
-  ((
-    algorithm: string,
-    data: crypto.BinaryLike,
-    outputEncoding: crypto.BinaryToTextEncoding,
-  ) => crypto.createHash(algorithm).update(data).digest(outputEncoding))
-
 export const cspHashes = [
   safari10NoModuleFix,
   systemJSInlineCode,
   detectModernBrowserCode,
   dynamicFallbackInlineCode,
-].map((i) => hash('sha256', i, 'base64'))
+].map((i) => crypto.hash('sha256', i, 'base64'))
 
 export type { Options }
 
 export default viteLegacyPlugin
+
+// Compat for require
+function viteLegacyPluginCjs(this: unknown, options: Options): Plugin[] {
+  return viteLegacyPlugin.call(this, options)
+}
+Object.assign(viteLegacyPluginCjs, {
+  cspHashes,
+  default: viteLegacyPluginCjs,
+  detectPolyfills,
+})
+
+export { viteLegacyPluginCjs as 'module.exports' }
