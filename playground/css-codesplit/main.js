@@ -7,7 +7,6 @@ import chunkCssUrl from './chunk.css?url'
 
 // use this to not treeshake
 globalThis.__test_chunkCssUrl = chunkCssUrl
-
 import('./async.css')
 import('./async-js')
 

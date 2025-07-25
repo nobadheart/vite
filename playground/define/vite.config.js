@@ -1,5 +1,6 @@
-import { defineConfig } from 'vite'
-
+import { defineConfig, loadEnv } from 'vite'
+const env = loadEnv('development', process.cwd())
+console.log(env)
 export default defineConfig({
   define: {
     __EXP__: 'false',
@@ -29,6 +30,7 @@ export default defineConfig({
     ÖUNICODE_LETTERɵ: 789,
     __VAR_NAME__: false,
     __STRINGIFIED_OBJ__: JSON.stringify({ foo: true }),
+    __STRINGIFIED_OBJ_2__: { foo: true },
     'import.meta.env.SOME_IDENTIFIER': '__VITE_SOME_IDENTIFIER__',
   },
   environments: {

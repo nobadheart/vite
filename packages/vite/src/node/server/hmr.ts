@@ -342,7 +342,7 @@ export function getSortedPluginsByHotUpdateHook(
     normal = 0,
     post = 0
   for (const plugin of plugins) {
-    const hook = plugin['hotUpdate'] ?? plugin['handleHotUpdate']
+    const hook = plugin['hotUpdate'] ?? plugin['handleHotUpdate'] // 舍弃旧的API
     if (hook) {
       if (typeof hook === 'object') {
         if (hook.order === 'pre') {
@@ -354,7 +354,7 @@ export function getSortedPluginsByHotUpdateHook(
           continue
         }
       }
-      sortedPlugins.splice(pre + normal++, 0, plugin)
+      sortedPlugins.splice(pre + normal++, 0, plugin) // 正常的没有oreder是一个函数
     }
   }
 
@@ -373,20 +373,21 @@ function getSortedHotUpdatePlugins(environment: Environment): Plugin[] {
 
 export async function handleHMRUpdate(
   type: 'create' | 'delete' | 'update',
-  file: string,
+  file: string, // 文件绝对路径
   server: ViteDevServer,
 ): Promise<void> {
   const { config } = server
   const mixedModuleGraph = ignoreDeprecationWarnings(() => server.moduleGraph)
 
   const environments = Object.values(server.environments)
-  const shortFile = getShortName(file, config.root)
+  const shortFile = getShortName(file, config.root) // src/index.js
 
-  const isConfig = file === config.configFile
+  const isConfig = file === config.configFile // configFile 是vite配置文件路径
   const isConfigDependency = config.configFileDependencies.some(
     (name) => file === name,
   )
 
+  // 是否是环境变量文件改变
   const isEnv =
     config.envDir !== false &&
     getEnvFilesForMode(config.mode, config.envDir).includes(file)
@@ -423,7 +424,8 @@ export async function handleHMRUpdate(
     return
   }
 
-  const timestamp = monotonicDateNow()
+  const timestamp = monotonicDateNow() // 返回唯一的类似时间戳
+  // 上下文
   const contextMeta = {
     type,
     file,
@@ -468,6 +470,7 @@ export async function handleHMRUpdate(
   const ssrHotUpdateOptions = hotMap.get(ssrEnvironment)?.options
   try {
     for (const plugin of getSortedHotUpdatePlugins(
+      // 遍历所有的hotUpdate的插件
       server.environments.client,
     )) {
       if (plugin.hotUpdate) {
@@ -628,6 +631,7 @@ export async function handleHMRUpdate(
 
 type HasDeadEnd = string | boolean
 
+// 更新模块
 export function updateModules(
   environment: DevEnvironment,
   file: string,
@@ -713,12 +717,13 @@ export function updateModules(
     debugHmr?.(colors.yellow(`no update happened `) + colors.dim(file))
     return
   }
-
   environment.logger.info(
     colors.green(`hmr update `) +
       colors.dim([...new Set(updates.map((u) => u.path))].join(', ')),
     { clear: !firstInvalidatedBy, timestamp: true },
   )
+
+  // 热更新 文件改变 >handleHotUpdate> hot.send({type: 'update', updates})>client.ts
   hot.send({
     type: 'update',
     updates,
@@ -752,6 +757,7 @@ function propagateUpdate(
   // if the imports of `node` have not been analyzed, then `node` has not
   // been loaded in the browser and we should stop propagation.
   if (node.id && node.isSelfAccepting === undefined) {
+    // import.meta.hot.accept(()=>{})
     debugHmr?.(
       `[propagate update] stop propagation because not analyzed: ${colors.dim(
         node.id,
@@ -1097,15 +1103,15 @@ function error(pos: number) {
 
 // vitejs/vite#610 when hot-reloading Vue files, we read immediately on file
 // change event and sometimes this can be too early and get an empty buffer.
-// Poll until the file's modified time has changed before reading again.
+// Poll until the file's modified time has changed before reading again. // 轮询
 async function readModifiedFile(file: string): Promise<string> {
   const content = await fsp.readFile(file, 'utf-8')
   if (!content) {
-    const mtime = (await fsp.stat(file)).mtimeMs
+    const mtime = (await fsp.stat(file)).mtimeMs //是获取文件的最后修改时间戳（以毫秒为单位）的方法
 
     for (let n = 0; n < 10; n++) {
       await new Promise((r) => setTimeout(r, 10))
-      const newMtime = (await fsp.stat(file)).mtimeMs
+      const newMtime = (await fsp.stat(file)).mtimeMs // stat() 方法返回文件的状态信息，包括大小、创建时间、修改时间等
       if (newMtime !== mtime) {
         break
       }

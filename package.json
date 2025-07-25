@@ -29,6 +29,7 @@
     "test-unit": "vitest run",
     "test-docs": "pnpm run docs-build",
     "debug-serve": "VITE_DEBUG_SERVE=1 vitest run -c vitest.config.e2e.ts",
+    "debug-serve-win": "set VITE_DEBUG_SERVE=1 && vitest run -c vitest.config.e2e.ts",
     "debug-build": "VITE_TEST_BUILD=1 VITE_PRESERVE_BUILD_ARTIFACTS=1 vitest run -c vitest.config.e2e.ts",
     "docs": "pnpm --filter=docs run docs",
     "docs-build": "pnpm --filter=docs run docs-build",
@@ -87,7 +88,6 @@
       "eslint --cache --fix"
     ]
   },
-  "packageManager": "pnpm@10.12.4",
   "stackblitz": {
     "startCommand": "pnpm --filter='./packages/vite' run dev"
   }

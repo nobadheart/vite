@@ -58,6 +58,8 @@ export const virtual = _virtual + '${num}';`
     },
     configureServer(server) {
       server.environments.client.hot.on('virtual:increment', async (suffix) => {
+        console.log('virtual:increment', suffix)
+        debugger
         const mod = await server.environments.client.moduleGraph.getModuleById(
           '\0virtual:file' + (suffix || ''),
         )

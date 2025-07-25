@@ -5,7 +5,7 @@ export default function myLib(sel) {
   document.querySelector(sel).textContent = 'It works'
 
   // Env vars should not be replaced
-  console.log(process.env.NODE_ENV)
+  console.log(process.env.NODE_ENV, 1111)
 
   // make sure umd helper has been moved to the right position
   console.log(`amd function(){ "use strict"; }`)

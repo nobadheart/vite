@@ -128,7 +128,7 @@ const debounceReload = (time: number) => {
       timer = null
     }
     timer = setTimeout(() => {
-      location.reload()
+      location.reload() // 页面全刷新
     }, time)
   }
 }
@@ -175,6 +175,7 @@ async function handleMessage(payload: HotPayload) {
       console.debug(`[vite] connected.`)
       break
     case 'update':
+      // 更新文件
       await hmrClient.notifyListeners('vite:beforeUpdate', payload)
       if (hasDocument) {
         // if this is the first update and there's already an error overlay, it

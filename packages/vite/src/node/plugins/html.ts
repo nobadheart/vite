@@ -1288,6 +1288,7 @@ export function injectNonceAttributeTagHook(
   }
 }
 
+// 处理transformHtml的插件  初始话插件的调用顺序
 export function resolveHtmlTransforms(
   plugins: readonly Plugin[],
 ): [
@@ -1300,13 +1301,14 @@ export function resolveHtmlTransforms(
   const postHooks: IndexHtmlTransformHook[] = []
 
   for (const plugin of plugins) {
-    const hook = plugin.transformIndexHtml
+    const hook = plugin.transformIndexHtml // html插件的hook
     if (!hook) continue
 
     if (typeof hook === 'function') {
       normalHooks.push(hook)
     } else {
       const handler = hook.handler
+      // schedule
       if (hook.order === 'pre') {
         preHooks.push(handler)
       } else if (hook.order === 'post') {

@@ -19,7 +19,8 @@ export default defineConfig({
     lib: {
       entry: path.resolve(__dirname, 'src/main.js'),
       name: 'MyLib',
-      formats: ['es', 'umd', 'iife'],
+      // formats: ['es', 'umd', 'iife'],
+      formats: ['es'],
       fileName: 'my-lib-custom-filename',
     },
   },
@@ -34,6 +35,7 @@ export default defineConfig({
             path.resolve(__dirname, 'index.dist.html'),
             'utf-8',
           ),
+          // source: '<div>111</div>'
         })
       },
     },

@@ -69,6 +69,7 @@ export function createDevHtmlTransformFn(
   html: string,
   originalUrl?: string,
 ) => Promise<string> {
+  // 拿到hooks
   const [preHooks, normalHooks, postHooks] = resolveHtmlTransforms(
     config.plugins,
   )

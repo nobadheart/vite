@@ -89,6 +89,7 @@
   text('.number', __NUMBER__)
   text('.boolean', __BOOLEAN__)
   text('.undefined', __UNDEFINED__)
+  console.log('__OBJ__', __OBJ__)
   text('.object', JSON.stringify(__OBJ__, null, 2))
   text('.process-node-env', process.env.NODE_ENV)
   text('.process-env', JSON.stringify(process.env, null, 2))
@@ -118,7 +119,9 @@
     document.querySelector(el).textContent = text
   }
 
-  import { defined } from '@vitejs/test-commonjs-dep'
+  import { defined, defined2 } from '@vitejs/test-commonjs-dep'
+  console.log('defined', defined)
+  console.log('defined2', defined2)
   text('.define-in-dep', JSON.stringify(defined))
 
   text('.define-in-environment', JSON.stringify(__DEFINE_IN_ENVIRONMENT__))

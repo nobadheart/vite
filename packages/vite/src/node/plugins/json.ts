@@ -48,7 +48,7 @@ export function jsonPlugin(
       handler(json, id) {
         if (!jsonExtRE.test(id)) return null
         if (SPECIAL_QUERY_RE.test(id)) return null
-
+        debugger
         if (inlineRE.test(id) || noInlineRE.test(id)) {
           this.warn(
             `\n` +

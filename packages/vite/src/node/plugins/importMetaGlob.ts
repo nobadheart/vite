@@ -1,6 +1,6 @@
 import { isAbsolute, posix } from 'node:path'
 import picomatch from 'picomatch'
-import { stripLiteral } from 'strip-literal'
+import { stripLiteral } from 'strip-literal' // 剔除文字和注释
 import colors from 'picocolors'
 import type {
   ArrayExpression,
@@ -40,6 +40,7 @@ interface ParsedGeneralImportGlobOptions extends GeneralImportGlobOptions {
   query?: string
 }
 
+// 处理 import.meta.glob的官方插件
 export function importGlobPlugin(config: ResolvedConfig): Plugin {
   const importGlobMaps = new Map<
     Environment,
@@ -109,9 +110,9 @@ export function importGlobPlugin(config: ResolvedConfig): Plugin {
     },
   }
 }
-
+// \b 单词边界前面不是数字和字母 (?:<\w+>)? 非捕获组 可选的 匹配<>里面多个字母 \s 匹配空格*代表0个或多个
 const importGlobRE = /\bimport\.meta\.glob(?:<\w+>)?\s*\(/g
-const objectKeysRE = /\bObject\.keys\(\s*$/
+const objectKeysRE = /\bObject\.keys\(\s*$/ // $结尾匹配
 const objectValuesRE = /\bObject\.values\(\s*$/
 
 const knownOptions = {
@@ -231,21 +232,25 @@ function parseGlobOptions(
 
 export async function parseImportGlob(
   code: string,
-  importer: string | undefined,
+  importer: string | undefined, // 导入者
   root: string,
   resolveId: IdResolver,
   logger?: Logger,
 ): Promise<ParsedImportGlob[]> {
   let cleanCode: string
   try {
+    // code import.meta.glob('./dir/*.js')\r\nconsole.log('He1112')";
+    // cleanCode "import.meta.glob('          ')\r\nconsole.log('      ')"
     cleanCode = stripLiteral(code)
   } catch {
     // skip invalid js code
     return []
   }
-  const matches = Array.from(cleanCode.matchAll(importGlobRE))
+  const matches = Array.from(cleanCode.matchAll(importGlobRE)) // match返回可迭代的对象 然后Array.from 变成数组
 
   const tasks = matches.map(async (match, index) => {
+    // 数组长度为1剩下的都是直接在数组上添加的属性
+    // match:['import.meta.glob(',groups:undefined,index:0，input:"import.meta.glob('          ')\r\nconsole.log('      ')"]
     const start = match.index!
 
     const err = (msg: string) => {
@@ -254,6 +259,7 @@ export async function parseImportGlob(
       return e
     }
 
+    // 找到对应的闭合括号
     const end =
       findCorrespondingCloseParenthesisPosition(
         cleanCode,
@@ -262,34 +268,39 @@ export async function parseImportGlob(
     if (end <= 0) {
       throw err('Close parenthesis not found')
     }
-
-    const statementCode = code.slice(start, end)
+    //"import.meta.glob('./dir11/*.js')"
+    const statementCode = code.slice(start, end) // slice从下标开始(包含) 到下标结束(不包含)
 
     const rootAst = (await parseAstAsync(statementCode)).body[0]
     if (rootAst.type !== 'ExpressionStatement') {
+      // 表达式
       throw err(`Expect CallExpression, got ${rootAst.type}`)
     }
     const ast = rootAst.expression
     if (ast.type !== 'CallExpression') {
+      // 函数调用
       throw err(`Expect CallExpression, got ${ast.type}`)
     }
     if (ast.arguments.length < 1 || ast.arguments.length > 2)
+      // arguments 返回一个数组 代表这个函数调用传了多少个参数
       throw err(`Expected 1-2 arguments, but got ${ast.arguments.length}`)
 
     const arg1 = ast.arguments[0] as ArrayExpression | Literal | TemplateLiteral
     const arg2 = ast.arguments[1] as RollupAstNode<Node> | undefined
 
-    const globs: string[] = []
+    const globs: string[] = [] // ['./dir/*.js']
 
     const validateLiteral = (element: Expression | SpreadElement | null) => {
       if (!element) return
       if (element.type === 'Literal') {
+        // 字面量
         if (typeof element.value !== 'string')
           throw err(
-            `Expected glob to be a string, but got "${typeof element.value}"`,
+            `Expected glob to be a string, but got "${typeof element.value}"`, // 期待字符串
           )
-        globs.push(element.value)
+        globs.push(element.value) // 将字面量添加到数组中
       } else if (element.type === 'TemplateLiteral') {
+        // 模板字符串
         if (element.expressions.length !== 0) {
           throw err(
             `Expected glob to be a string, but got dynamic template literal`,
@@ -302,7 +313,9 @@ export async function parseImportGlob(
     }
 
     if (arg1.type === 'ArrayExpression') {
+      // 第一个参数如果是一个数组
       for (const element of arg1.elements) {
+        // element 数组中的每一项
         validateLiteral(element)
       }
     } else {
@@ -323,7 +336,7 @@ export async function parseImportGlob(
         logger,
       )
     }
-
+    // ['C:/Users/Administrator/Desktop/study/vite/playground/server-demo/src/dir11111/*.js']
     const globsResolved = await Promise.all(
       globs.map((glob) =>
         toAbsoluteGlob(glob, root, importer, resolveId, options.base),
@@ -620,6 +633,7 @@ export async function toAbsoluteGlob(
 ): Promise<string> {
   let pre = ''
   if (glob[0] === '!') {
+    // 反面匹配
     pre = '!'
     glob = glob.slice(1)
   }

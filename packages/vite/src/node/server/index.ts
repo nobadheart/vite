@@ -435,15 +435,15 @@ export async function _createServer(
     previousEnvironments?: Record<string, DevEnvironment>
   },
 ): Promise<ViteDevServer> {
+  debugger
   // 处理用户传入的 inlineConfig 和 配置文件
   const config = isResolvedConfig(inlineConfig)
     ? inlineConfig
     : await resolveConfig(inlineConfig, 'serve')
-
+  console.log(123)
   if (usedConfigs.has(config)) {
     throw new Error(`There is already a server associated with the config.`)
   }
-
   if (config.command !== 'serve') {
     throw new Error(
       `Config was resolved for a "build", expected a "serve" command.`,
@@ -453,7 +453,7 @@ export async function _createServer(
   usedConfigs.add(config)
 
   const initPublicFilesPromise = initPublicFiles(config)
-
+  // root 根文件夹
   const { root, server: serverConfig } = config
   const httpsOptions = await resolveHttpsConfig(config.server.https)
   const { middlewareMode } = serverConfig
@@ -464,7 +464,7 @@ export async function _createServer(
     config.build.outDir,
     config.build.rollupOptions.output,
   )
-  //true
+  //true 打包后的文件夹是否是空
   const emptyOutDir = resolveEmptyOutDir(
     config.build.emptyOutDir,
     config.root,
@@ -482,7 +482,7 @@ export async function _createServer(
   )
 
   const middlewares = connect() as Connect.Server
-  const httpServer = middlewareMode
+  const httpServer = middlewareMode // false
     ? null
     : await resolveHttpServer(serverConfig, middlewares, httpsOptions)
 
@@ -515,7 +515,7 @@ export async function _createServer(
     : createNoopWatcher(resolvedWatchOptions)
 
   const environments: Record<string, DevEnvironment> = {}
-
+  //  config.environments 默认是client 和 ssr
   for (const [name, environmentOptions] of Object.entries(
     config.environments,
   )) {
@@ -539,6 +539,7 @@ export async function _createServer(
     client: () => environments.client.moduleGraph,
     ssr: () => environments.ssr.moduleGraph,
   })
+  debugger
   const pluginContainer = createPluginContainer(environments)
 
   const closeHttpServer = createServerCloseFn(httpServer)
@@ -767,6 +768,7 @@ export async function _createServer(
   }
 
   // maintain consistency with the server instance after restarting.
+  // 代理server 即使server改变了 代理的server也会改变 server = {newStr:1}
   const reflexServer = new Proxy(server, {
     get: (_, property: keyof ViteDevServer) => {
       return server[property]
@@ -834,6 +836,7 @@ export async function _createServer(
   }
 
   watcher.on('change', async (file) => {
+    // 检测文件变化
     file = normalizePath(file)
     reloadOnTsconfigChange(server, file)
 

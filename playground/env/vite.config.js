@@ -1,7 +1,8 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 
 process.env.EXPAND = 'expand'
-
+const env = loadEnv('local', process.cwd(), '')
+console.log(env)
 export default defineConfig({
   base: '/env/',
   envPrefix: ['VITE_', 'CUSTOM_PREFIX_'],

@@ -66,6 +66,8 @@ if (import.meta.hot) {
   })
 
   import.meta.hot.accept('./hmrDep', ({ foo, nestedFoo }) => {
+    // debugger
+    console.log('hmrDep', foo, nestedFoo)
     handleDep('single dep', foo, nestedFoo)
   })
 
