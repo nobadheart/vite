@@ -435,12 +435,10 @@ export async function _createServer(
     previousEnvironments?: Record<string, DevEnvironment>
   },
 ): Promise<ViteDevServer> {
-  debugger
   // 处理用户传入的 inlineConfig 和 配置文件
   const config = isResolvedConfig(inlineConfig)
     ? inlineConfig
     : await resolveConfig(inlineConfig, 'serve')
-  console.log(123)
   if (usedConfigs.has(config)) {
     throw new Error(`There is already a server associated with the config.`)
   }
@@ -539,7 +537,6 @@ export async function _createServer(
     client: () => environments.client.moduleGraph,
     ssr: () => environments.ssr.moduleGraph,
   })
-  debugger
   const pluginContainer = createPluginContainer(environments)
 
   const closeHttpServer = createServerCloseFn(httpServer)
@@ -1111,6 +1108,7 @@ export const serverConfigDefaults = Object.freeze({
   // hotUpdateEnvironments
 } satisfies ServerOptions)
 
+// 解析 server 选项
 export function resolveServerOptions(
   root: string,
   raw: ServerOptions | undefined,

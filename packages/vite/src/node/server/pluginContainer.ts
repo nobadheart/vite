@@ -1186,6 +1186,7 @@ class PluginContainer {
  * an environment. The defaultEnvironment in the main pluginContainer in the server should be
  * the client environment for backward compatibility.
  **/
+// 创建插件容器
 export function createPluginContainer(
   environments: Record<string, Environment>,
 ): PluginContainer {

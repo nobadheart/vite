@@ -236,6 +236,7 @@ function getResolveCacheKey(key: string, options: InternalResolveOptions) {
   ].join('|')
 }
 
+// 找到最近的node_modules文件夹
 export function findNearestNodeModules(basedir: string): string | null {
   while (basedir) {
     const pkgPath = path.join(basedir, 'node_modules')
@@ -243,8 +244,8 @@ export function findNearestNodeModules(basedir: string): string | null {
       return pkgPath
     }
 
-    const nextBasedir = path.dirname(basedir)
-    if (nextBasedir === basedir) break
+    const nextBasedir = path.dirname(basedir) // 再向上找
+    if (nextBasedir === basedir) break // 如果向上找的目录和当前目录一样，则退出
     basedir = nextBasedir
   }
 

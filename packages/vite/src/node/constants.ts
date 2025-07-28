@@ -78,6 +78,7 @@ export const ESBUILD_BASELINE_WIDELY_AVAILABLE_TARGET = [
   'safari16',
 ]
 
+// 默认配置文件名字
 export const DEFAULT_CONFIG_FILES = [
   'vite.config.js',
   'vite.config.mjs',

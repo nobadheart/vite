@@ -391,6 +391,7 @@ export const buildEnvironmentOptionsDefaults = Object.freeze({
   // createEnvironment
 })
 
+// 解析 build 选项
 export function resolveBuildEnvironmentOptions(
   raw: BuildEnvironmentOptions,
   logger: Logger,
@@ -459,6 +460,7 @@ export function resolveBuildEnvironmentOptions(
   return resolved
 }
 
+// 解析 build 插件
 export async function resolveBuildPlugins(config: ResolvedConfig): Promise<{
   pre: Plugin[]
   post: Plugin[]

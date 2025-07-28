@@ -29,6 +29,7 @@ import {
   createIdFilter,
 } from './pluginFilter'
 
+// 根据是否是打包 返回全部不同的插件 包括用户插件
 export async function resolvePlugins(
   config: ResolvedConfig,
   prePlugins: Plugin[],
@@ -43,16 +44,17 @@ export async function resolvePlugins(
   const { modulePreload } = config.build
 
   return [
-    !isBuild ? optimizedDepsPlugin() : null,
-    isBuild ? metadataPlugin() : null,
+    !isBuild ? optimizedDepsPlugin() : null, // 官方的依赖预构建插件
+    isBuild ? metadataPlugin() : null, // 官方的 metadata 插件
     !isWorker ? watchPackageDataPlugin(config.packageCache) : null,
     !isBuild ? preAliasPlugin(config) : null,
     aliasPlugin({
+      //alias插件
       entries: config.resolve.alias,
       customResolver: viteAliasCustomResolver,
     }),
 
-    ...prePlugins,
+    ...prePlugins, // 用户的pre插件
 
     modulePreload !== false && modulePreload.polyfill
       ? modulePreloadPolyfillPlugin(config)
@@ -69,12 +71,12 @@ export async function resolvePlugins(
     htmlInlineProxyPlugin(config),
     cssPlugin(config),
     config.esbuild !== false ? esbuildPlugin(config) : null,
-    jsonPlugin(config.json, isBuild),
+    jsonPlugin(config.json, isBuild), // 官方处理json文件的插件
     wasmHelperPlugin(),
     webWorkerPlugin(config),
     assetPlugin(config),
 
-    ...normalPlugins,
+    ...normalPlugins, // 用户的normal插件
 
     wasmFallbackPlugin(),
     definePlugin(config),
@@ -82,13 +84,13 @@ export async function resolvePlugins(
     isBuild && buildHtmlPlugin(config),
     workerImportMetaUrlPlugin(config),
     assetImportMetaUrlPlugin(config),
-    ...buildPlugins.pre,
+    ...buildPlugins.pre, // 官方的build pre插件
     dynamicImportVarsPlugin(config),
     importGlobPlugin(config),
 
-    ...postPlugins,
+    ...postPlugins, // 用户的post插件
 
-    ...buildPlugins.post,
+    ...buildPlugins.post, // 官方的build post插件
 
     // internal server-only plugins are always applied after everything else
     ...(isBuild
@@ -128,6 +130,7 @@ export function createPluginHookUtils(
   }
 }
 
+// 根据 钩子名称 和 钩子order 获取排序后的插件
 export function getSortedPluginsByHook<K extends keyof Plugin>(
   hookName: K,
   plugins: readonly Plugin[],
@@ -158,6 +161,7 @@ export function getSortedPluginsByHook<K extends keyof Plugin>(
   return sortedPlugins as PluginWithRequiredHook<K>[]
 }
 
+// 获取钩子处理函数
 export function getHookHandler<T extends ObjectHook<Function>>(
   hook: T,
 ): HookHandler<T> {

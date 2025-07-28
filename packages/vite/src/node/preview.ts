@@ -51,6 +51,7 @@ export interface PreviewOptions extends CommonServerOptions {}
 export interface ResolvedPreviewOptions
   extends RequiredExceptFor<PreviewOptions, 'host' | 'https' | 'proxy'> {}
 
+// 解析 preview 选项
 export function resolvePreviewOptions(
   preview: PreviewOptions | undefined,
   server: ResolvedServerOptions,
@@ -59,15 +60,15 @@ export function resolvePreviewOptions(
   // except for the port to enable having both the dev and preview servers running
   // at the same time without extra configuration
   return {
-    port: preview?.port ?? DEFAULT_PREVIEW_PORT,
+    port: preview?.port ?? DEFAULT_PREVIEW_PORT, // 默认端口 4173
     strictPort: preview?.strictPort ?? server.strictPort,
-    host: preview?.host ?? server.host,
-    allowedHosts: preview?.allowedHosts ?? server.allowedHosts,
-    https: preview?.https ?? server.https,
-    open: preview?.open ?? server.open,
-    proxy: preview?.proxy ?? server.proxy,
-    cors: preview?.cors ?? server.cors,
-    headers: preview?.headers ?? server.headers,
+    host: preview?.host ?? server.host, // 主机
+    allowedHosts: preview?.allowedHosts ?? server.allowedHosts, // 允许的主机
+    https: preview?.https ?? server.https, // 是否启用https
+    open: preview?.open ?? server.open, // 是否打开浏览器
+    proxy: preview?.proxy ?? server.proxy, // 代理
+    cors: preview?.cors ?? server.cors, // 跨域
+    headers: preview?.headers ?? server.headers, // 头部
   }
 }
 
@@ -246,6 +247,7 @@ export async function preview(
           }
         }
       },
+      // @ts-ignore
       shouldServe(filePath) {
         return shouldServeFile(filePath, distDir)
       },

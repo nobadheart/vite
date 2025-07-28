@@ -441,13 +441,16 @@ export function lookupFile(
   }
 }
 
+// 判断文件是否是ESM模块
 export function isFilePathESM(
   filePath: string,
   packageCache?: PackageCache,
 ): boolean {
   if (/\.m[jt]s$/.test(filePath)) {
+    //以mjs结尾的文件是ESM模块
     return true
   } else if (/\.c[jt]s$/.test(filePath)) {
+    //以cts结尾的文件是CommonJS模块
     return false
   } else {
     // check package.json for type: "module"

@@ -977,6 +977,7 @@ function resolveEnvironmentResolveOptions(
   return resolvedResolve
 }
 
+// 解析 resolve 选项
 function resolveResolveOptions(
   resolve: AllResolveOptions | undefined,
   logger: Logger,
@@ -1049,14 +1050,14 @@ export async function resolveConfig(
 ): Promise<ResolvedConfig> {
   let config = inlineConfig
   let configFileDependencies: string[] = []
-  let mode = inlineConfig.mode || defaultMode
-  const isNodeEnvSet = !!process.env.NODE_ENV
+  let mode = inlineConfig.mode || defaultMode // 'development'
+  const isNodeEnvSet = !!process.env.NODE_ENV // 纯node环境这个值是undefined
   const packageCache: PackageCache = new Map()
 
   // some dependencies e.g. @vue/compiler-* relies on NODE_ENV for getting
   // production-specific behavior, so set it early on
   if (!isNodeEnvSet) {
-    process.env.NODE_ENV = defaultNodeEnv
+    process.env.NODE_ENV = defaultNodeEnv // NODE_ENV
   }
 
   const configEnv: ConfigEnv = {
@@ -1077,13 +1078,13 @@ export async function resolveConfig(
       config.configLoader,
     )
     if (loadResult) {
-      config = mergeConfig(loadResult.config, config)
-      configFile = loadResult.path
-      configFileDependencies = loadResult.dependencies
+      config = mergeConfig(loadResult.config, config) // 合并 inline配置 和 配置文件配置
+      configFile = loadResult.path // 配置文件路径
+      configFileDependencies = loadResult.dependencies // 配置文件数组
     }
   }
 
-  // user config may provide an alternative mode. But --mode has a higher priority
+  // user config may provide an alternative mode. But --mode has a higher priority 行内mode最高级
   mode = inlineConfig.mode || config.mode || mode
   configEnv.mode = mode
 
@@ -1093,7 +1094,8 @@ export async function resolveConfig(
     } else if (!p.apply) {
       return true
     } else if (typeof p.apply === 'function') {
-      return p.apply({ ...config, mode }, configEnv)
+      // apply是一个函数的情况
+      return p.apply({ ...config, mode }, configEnv) // 执行apply函数
     } else {
       return p.apply === command
     }
@@ -1103,7 +1105,6 @@ export async function resolveConfig(
   const rawPlugins = (await asyncFlatten(config.plugins || [])).filter(
     filterPlugin,
   )
-
   const [prePlugins, normalPlugins, postPlugins] = sortUserPlugins(rawPlugins)
 
   const isBuild = command === 'build'
@@ -1189,7 +1190,7 @@ export async function resolveConfig(
   // The client and ssr environment configs can't be removed by the user in the config hook
   if (!config.environments.client || (!config.environments.ssr && !isBuild)) {
     throw new Error(
-      'Required environments configuration were stripped out in the config hook',
+      'Required environments configuration were stripped out in the config hook', // 剥离
     )
   }
 
@@ -1236,8 +1237,10 @@ export async function resolveConfig(
   config.resolve.conditions = config.environments.client.resolve?.conditions
   config.resolve.mainFields = config.environments.client.resolve?.mainFields
 
+  // 解析 resolve 选项 设置到config
   const resolvedDefaultResolve = resolveResolveOptions(config.resolve, logger)
 
+  // 解析环境选项 resolvedEnvironments
   const resolvedEnvironments: Record<string, ResolvedEnvironmentOptions> = {}
   for (const environmentName of Object.keys(config.environments)) {
     resolvedEnvironments[environmentName] = resolveEnvironmentOptions(
@@ -1266,6 +1269,7 @@ export async function resolveConfig(
     undefined,
   )
 
+  // 解析 获取 build 选项
   const resolvedBuildOptions = resolveBuildEnvironmentOptions(
     config.build ?? {},
     logger,
@@ -1290,7 +1294,7 @@ export async function resolveConfig(
     resolvedDefaultResolve.preserveSymlinks,
   )
 
-  // load .env files
+  // load .env files 加载.env文件
   // Backward compatibility: set envDir to false when envFile is false
   let envDir = config.envFile === false ? false : config.envDir
   if (envDir !== false) {
@@ -1300,7 +1304,6 @@ export async function resolveConfig(
   }
 
   const userEnv = loadEnv(mode, envDir, resolveEnvPrefix(config))
-
   // Note it is possible for user to have a custom mode, e.g. `staging` where
   // development-like behavior is expected. This is indicated by NODE_ENV=development
   // loaded from `.staging.env` and set by us as VITE_USER_NODE_ENV
@@ -1332,8 +1335,11 @@ export async function resolveConfig(
       : './'
     : resolveBaseUrl(config.base, isBuild, logger)
 
-  // resolve cache directory
+  // 处理 pkgDir 获取 package.json 的dir
   const pkgDir = findNearestPackageData(resolvedRoot, packageCache)?.dir
+
+  // 处理 缓存文件夹 node_modules/.vite
+  // resolve cache directory
   const cacheDir = normalizePath(
     config.cacheDir
       ? path.resolve(resolvedRoot, config.cacheDir)
@@ -1357,13 +1363,15 @@ export async function resolveConfig(
             resolvedRoot,
             typeof publicDir === 'string'
               ? publicDir
-              : configDefaults.publicDir,
+              : configDefaults.publicDir, //'public'
           ),
         )
       : ''
 
+  // 处理 server 选项
   const server = resolveServerOptions(resolvedRoot, config.server, logger)
 
+  // 处理 builder 选项
   const builder = resolveBuilderOptions(config.builder)
 
   const BASE_URL = resolvedBase
@@ -1378,6 +1386,7 @@ export async function resolveConfig(
     logger,
   )
 
+  // 处理 worker 选项
   let resolved: ResolvedConfig
 
   let createUserWorkerPlugins = config.worker?.plugins
@@ -1470,6 +1479,7 @@ export async function resolveConfig(
 
   const base = withTrailingSlash(resolvedBase)
 
+  // 处理 preview 选项
   const preview = resolvePreviewOptions(config.preview, server)
 
   const additionalAllowedHosts = getAdditionalAllowedHosts(server, preview)
@@ -1514,6 +1524,7 @@ export async function resolveConfig(
     envDir,
     env: {
       ...userEnv,
+      // 官方环境变量
       BASE_URL,
       MODE: mode,
       DEV: !isProduction,
@@ -1595,6 +1606,7 @@ export async function resolveConfig(
   // gets called
   patchConfig?.(resolved)
 
+  // 拿到解析后的插件
   const resolvedPlugins = await resolvePlugins(
     resolved,
     prePlugins,
@@ -1613,7 +1625,7 @@ export async function resolveConfig(
   await Promise.all(
     resolved
       .getSortedPluginHooks('configResolved')
-      .map((hook) => hook.call(resolvedConfigContext, resolved)),
+      .map((hook) => hook.call(resolvedConfigContext, resolved)), // 执行 configResolved 钩子
   )
 
   // Resolve environment plugins after configResolved because there are
@@ -1624,7 +1636,6 @@ export async function resolveConfig(
       new PartialEnvironment(name, resolved),
     )
   }
-
   optimizeDepsDisabledBackwardCompatibility(resolved, resolved.optimizeDeps)
   optimizeDepsDisabledBackwardCompatibility(
     resolved,
@@ -1688,6 +1699,7 @@ assetFileNames isn't equal for every build.rollupOptions.output. A single patter
     )
   }
 
+  // 处理 build.outDir 选项 即打包的输出目录
   const resolvedBuildOutDir = normalizePath(
     path.resolve(resolved.root, resolved.build.outDir),
   )
@@ -1759,6 +1771,7 @@ function decodeBase(base: string): string {
   }
 }
 
+// 排序用户插件
 export function sortUserPlugins(
   plugins: (Plugin | Plugin[])[] | undefined,
 ): [Plugin[], Plugin[], Plugin[]] {
@@ -1768,19 +1781,24 @@ export function sortUserPlugins(
 
   if (plugins) {
     plugins.flat().forEach((p) => {
-      if (p.enforce === 'pre') prePlugins.push(p)
-      else if (p.enforce === 'post') postPlugins.push(p)
-      else normalPlugins.push(p)
+      if (p.enforce === 'pre')
+        prePlugins.push(p) // pre 插件
+      else if (p.enforce === 'post')
+        postPlugins.push(p) // post 插件
+      else normalPlugins.push(p) // normal 插件
     })
   }
 
   return [prePlugins, normalPlugins, postPlugins]
 }
 
+/**
+ * 加载vite.config.js配置文件
+ */
 export async function loadConfigFromFile(
   configEnv: ConfigEnv,
   configFile?: string,
-  configRoot: string = process.cwd(),
+  configRoot: string = process.cwd(), // 执行脚本的目录
   logLevel?: LogLevel,
   customLogger?: Logger,
   configLoader: 'bundle' | 'runner' | 'native' = 'bundle',
@@ -1799,20 +1817,20 @@ export async function loadConfigFromFile(
     )
   }
 
-  const start = performance.now()
+  const start = performance.now() // 返回毫秒级
   const getTime = () => `${(performance.now() - start).toFixed(2)}ms`
 
   let resolvedPath: string | undefined
 
   if (configFile) {
-    // explicit config path is always resolved from cwd
-    resolvedPath = path.resolve(configFile)
+    // explicit config path is always resolved from cwd // 明确的配置路径总是从cwd解析
+    resolvedPath = path.resolve(configFile) // path.resolve传一个相当于第一个传 process.cwd()
   } else {
-    // implicit config file loaded from inline root (if present)
+    // implicit config file loaded from inline root (if present) // 隐式的配置文件从inline root解析（如果存在）
     // otherwise from cwd
     for (const filename of DEFAULT_CONFIG_FILES) {
       const filePath = path.resolve(configRoot, filename)
-      if (!fs.existsSync(filePath)) continue
+      if (!fs.existsSync(filePath)) continue // 判断路径是否存在 文件夹和文件都能判断
 
       resolvedPath = filePath
       break
@@ -1834,9 +1852,9 @@ export async function loadConfigFromFile(
     const { configExport, dependencies } = await resolver(resolvedPath)
     debug?.(`config file loaded in ${getTime()}`)
 
-    const config = await (typeof configExport === 'function'
-      ? configExport(configEnv)
-      : configExport)
+    const config = await (typeof configExport === 'function' // 配置文件是否是函数
+      ? configExport(configEnv) // 是函数就执行 {command，isPreview，isSsrBuild，mode}
+      : configExport) // 不是函数就返回
     if (!isObject(config)) {
       throw new Error(`config must export or return an object.`)
     }
@@ -1876,8 +1894,9 @@ async function runnerImportConfigFile(resolvedPath: string) {
   }
 }
 
+// 打包并且加载配置文件
 async function bundleAndLoadConfigFile(resolvedPath: string) {
-  const isESM =
+  const isESM = // process.versions 是一个包含 Node.js 及其依赖库版本的对象
     typeof process.versions.deno === 'string' || isFilePathESM(resolvedPath)
 
   const bundled = await bundleConfigFile(resolvedPath, isESM)
@@ -1893,6 +1912,7 @@ async function bundleAndLoadConfigFile(resolvedPath: string) {
   }
 }
 
+// 用esbuild打包配置文件
 async function bundleConfigFile(
   fileName: string,
   isESM: boolean,
@@ -1903,6 +1923,7 @@ async function bundleConfigFile(
   const filenameVarName = '__vite_injected_original_filename'
   const importMetaUrlVarName = '__vite_injected_original_import_meta_url'
   const result = await build({
+    // 用的esbuild
     absWorkingDir: process.cwd(),
     entryPoints: [fileName],
     write: false,
@@ -2059,11 +2080,13 @@ async function loadConfigFromBundledFile(
     let nodeModulesDir =
       typeof process.versions.deno === 'string'
         ? undefined
-        : findNearestNodeModules(path.dirname(fileName))
+        : findNearestNodeModules(path.dirname(fileName)) // 传一个代表这个目录的父路径
     if (nodeModulesDir) {
+      // 项目存在node_modules文件夹就放到node_modules文件夹下 否则放到根目录下
       try {
         await fsp.mkdir(path.resolve(nodeModulesDir, '.vite-temp/'), {
-          recursive: true,
+          // 创建一个文件夹
+          recursive: true, // 创建所有不存在的父目录
         })
       } catch (e) {
         if (e.code === 'EACCES') {
@@ -2075,16 +2098,18 @@ async function loadConfigFromBundledFile(
       }
     }
     const hash = `timestamp-${Date.now()}-${Math.random().toString(16).slice(2)}`
-    const tempFileName = nodeModulesDir
+    const tempFileName = nodeModulesDir // 临时文件名称
       ? path.resolve(
           nodeModulesDir,
           `.vite-temp/${path.basename(fileName)}.${hash}.mjs`,
         )
-      : `${fileName}.${hash}.mjs`
-    await fsp.writeFile(tempFileName, bundledCode)
+      : `${fileName}.${hash}.mjs` // 如果项目不存在node_modules文件夹就放到根目录下 后面多了hash
+    // 写入临时文件
+    await fsp.writeFile(tempFileName, bundledCode) // 打包后的文件
     try {
-      return (await import(pathToFileURL(tempFileName).href)).default
+      return (await import(pathToFileURL(tempFileName).href)).default // 导入临时的File协议的文件
     } finally {
+      // fs.unlink异步删除文件  删除临时文件
       fs.unlink(tempFileName, () => {}) // Ignore errors
     }
   }
@@ -2113,6 +2138,7 @@ async function loadConfigFromBundledFile(
   }
 }
 
+// 运行插件中的配置钩子
 async function runConfigHook(
   config: InlineConfig,
   plugins: Plugin[],
@@ -2127,13 +2153,12 @@ async function runConfigHook(
   const context = new BasicMinimalPluginContext<
     Omit<PluginContextMeta, 'watchMode'>
   >(basePluginContextMeta, tempLogger)
-
   for (const p of getSortedPluginsByHook('config', plugins)) {
     const hook = p.config
     const handler = getHookHandler(hook)
     const res = await handler.call(context, conf, configEnv)
     if (res && res !== conf) {
-      conf = mergeConfig(conf, res)
+      conf = mergeConfig(conf, res) // 合并配置
     }
   }
 
