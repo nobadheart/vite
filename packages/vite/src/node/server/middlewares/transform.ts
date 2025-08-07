@@ -89,11 +89,13 @@ export function cachedTransformMiddleware(
 
     // check if we can return 304 early
     const ifNoneMatch = req.headers['if-none-match']
+    // 判断是否满足304条件
     if (ifNoneMatch) {
+      // debugger
       const moduleByEtag = environment.moduleGraph.getModuleByEtag(ifNoneMatch)
       if (
-        moduleByEtag?.transformResult?.etag === ifNoneMatch &&
-        moduleByEtag.url === req.url
+        moduleByEtag?.transformResult?.etag === ifNoneMatch && // etag没有变
+        moduleByEtag.url === req.url // 同一个请求
       ) {
         // For CSS requests, if the same CSS file is imported in a module,
         // the browser sends the request for the direct CSS request with the etag
@@ -256,6 +258,7 @@ export function transformMiddleware(
             (await environment.moduleGraph.getModuleByUrl(url))?.transformResult
               ?.etag === ifNoneMatch
           ) {
+            // 协商缓存通过 etag相同 返回304
             debugCache?.(`[304] ${prettifyUrl(url, server.config.root)}`)
             res.statusCode = 304
             return res.end()
@@ -275,11 +278,14 @@ export function transformMiddleware(
         if (result) {
           const depsOptimizer = environment.depsOptimizer
           const type = isDirectCSSRequest(url) ? 'css' : 'js'
+          // 是否是npm包
           const isDep =
             DEP_VERSION_RE.test(url) || depsOptimizer?.isOptimizedDepUrl(url)
           return send(req, res, result.code, type, {
-            etag: result.etag,
+            etag: result.etag, // etag 协商缓存
             // allow browser to cache npm deps!
+            // 强缓存: 对于npm包直接强缓存 不请求vite服务器; 对于源代码 不强缓存 每次请求都请求vite服务器
+            // 对etag进行比对 如果一致 则返回304 否则请求新的资源·
             cacheControl: isDep ? 'max-age=31536000,immutable' : 'no-cache',
             headers: server.config.server.headers,
             map: result.map,
