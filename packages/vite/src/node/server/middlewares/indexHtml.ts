@@ -464,8 +464,11 @@ export function indexHtmlMiddleware(
           : server.config.preview.headers
 
         try {
+          // 读取index.html文件
+          // debugger
           let html = await fsp.readFile(filePath, 'utf-8')
           if (isDev) {
+            // 加入 <script type="module" src="/@vite/client">
             html = await server.transformIndexHtml(url, html, req.originalUrl)
           }
           return send(req, res, html, 'html', { headers })
