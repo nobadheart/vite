@@ -37,6 +37,7 @@ export function optimizedDepsPlugin(): Plugin {
     // is in importAnalysis, see call to delayDepsOptimizerUntil
 
     async load(id) {
+      // debugger
       const environment = this.environment as DevEnvironment
       const depsOptimizer = environment.depsOptimizer
       if (depsOptimizer?.isOptimizedDepFile(id)) {
