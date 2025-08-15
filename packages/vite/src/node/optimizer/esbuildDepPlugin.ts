@@ -134,6 +134,7 @@ export function esbuildDepPlugin(
   return {
     name: 'vite:dep-pre-bundle',
     setup(build) {
+      // debugger
       // clear package cache when esbuild is finished
       build.onEnd(() => {
         esmPackageCache.clear()
@@ -211,6 +212,7 @@ export function esbuildDepPlugin(
       build.onResolve(
         { filter: /^[\w@][^:]/ },
         async ({ path: id, importer, kind }) => {
+          // debugger
           if (moduleListContains(external, id)) {
             return {
               path: id,
