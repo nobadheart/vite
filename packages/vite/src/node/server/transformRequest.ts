@@ -75,6 +75,7 @@ export function transformRequest(
   url: string,
   options: TransformOptions = {},
 ): Promise<TransformResult | null> {
+  // debugger
   // Backward compatibility when only `ssr` is passed
   if (!options.ssr) {
     // Backward compatibility
@@ -150,6 +151,9 @@ export function transformRequest(
   return request.finally(clearCache)
 }
 
+/**
+ * 处理http请求，主要是一些插件的调用 resolveId、load、transform
+ */
 async function doTransform(
   environment: DevEnvironment,
   url: string,
@@ -171,12 +175,11 @@ async function doTransform(
     )
     if (cached) return cached
   }
-
+  // 1.调用resolveId插件 转化为绝对路径
   const resolved = module
     ? undefined
     : ((await pluginContainer.resolveId(url, undefined)) ?? undefined)
-
-  // resolve
+  // resolve：  url 是请求的路径 id是转化后的绝对路径
   const id = module?.id ?? resolved?.id ?? url
 
   module ??= environment.moduleGraph.getModuleById(id)
@@ -192,7 +195,7 @@ async function doTransform(
     )
     if (cached) return cached
   }
-
+  // debugger
   const result = loadAndTransform(
     environment,
     id,
@@ -232,6 +235,7 @@ async function getCachedTransformResult(
   }
 
   // check if we have a fresh cache
+  // debugger
   const cached = module.transformResult
   if (cached) {
     debugCache?.(`[memory] ${prettyUrl}`)
@@ -239,6 +243,7 @@ async function getCachedTransformResult(
   }
 }
 
+// 调用load和transform钩子
 async function loadAndTransform(
   environment: DevEnvironment,
   id: string,
@@ -248,6 +253,7 @@ async function loadAndTransform(
   mod?: EnvironmentModuleNode,
   resolved?: PartialResolvedId,
 ) {
+  // debugger
   const { config, pluginContainer, logger } = environment
   const prettyUrl =
     debugLoad || debugTransform ? prettifyUrl(url, config.root) : ''
@@ -265,6 +271,7 @@ async function loadAndTransform(
 
   // load
   const loadStart = debugLoad ? performance.now() : 0
+  // 2调用load钩子
   const loadResult = await pluginContainer.load(id)
 
   if (loadResult == null) {
@@ -285,7 +292,10 @@ async function loadAndTransform(
       isFileLoadingAllowed(environment.getTopLevelConfig(), file)
     ) {
       try {
+        // debugger
+        // 读取具体的文件 在load里面返回为null 业务代码index.js  在这里读取了文件
         code = await fsp.readFile(file, 'utf-8')
+        // debugger
         debugLoad?.(`${timeFrom(loadStart)} [fs] ${prettyUrl}`)
       } catch (e) {
         if (e.code !== 'ENOENT') {
@@ -354,6 +364,7 @@ async function loadAndTransform(
   mod ??= await moduleGraph._ensureEntryFromUrl(url, undefined, resolved)
 
   // transform
+  // 3调用transform钩子 在transform里面把dayjs 转成了/node_modules/.vite/deps/dayjs.js?v=8a3c0d19
   const transformStart = debugTransform ? performance.now() : 0
   const transformResult = await pluginContainer.transform(code, id, {
     inMap: map,
