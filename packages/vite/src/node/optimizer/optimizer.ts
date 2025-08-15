@@ -40,6 +40,7 @@ const debounceMs = 100
 export function createDepsOptimizer(
   environment: DevEnvironment,
 ): DepsOptimizer {
+  // debugger
   const { logger } = environment
   const sessionTimestamp = Date.now().toString()
 
@@ -49,13 +50,16 @@ export function createDepsOptimizer(
 
   const options = environment.config.optimizeDeps
 
+  // noDiscovery 不需要自动扫描，默认false 和 true时和include 一起使用
   const { noDiscovery, holdUntilCrawlEnd } = options
 
+  // 元数据 一些hash
   let metadata: DepOptimizationMetadata = initDepsOptimizerMetadata(
     environment,
     sessionTimestamp,
   )
 
+  // 依赖优化器
   const depsOptimizer: DepsOptimizer = {
     init,
     metadata,
@@ -150,10 +154,13 @@ export function createDepsOptimizer(
   }
 
   let inited = false
+  // 初始化依赖预构建
   async function init() {
+    // debugger
     if (inited) return
     inited = true
 
+    // 加载metadata.json文件数据
     const cachedMetadata = await loadCachedDepOptimizationMetadata(environment)
 
     firstRunCalled = !!cachedMetadata
@@ -162,6 +169,7 @@ export function createDepsOptimizer(
       cachedMetadata || initDepsOptimizerMetadata(environment, sessionTimestamp)
 
     if (!cachedMetadata) {
+      // metadata数据不存在 第一次构建 或者说 config lock文件改变了
       waitingForCrawlEnd = true
 
       // Enter processing state until crawl of static imports ends
@@ -169,6 +177,7 @@ export function createDepsOptimizer(
 
       // Initialize discovered deps with manually added optimizeDeps.include info
 
+      // 手动添加的依赖 includes项目
       const manuallyIncludedDeps: Record<string, string> = {}
       await addManuallyIncludedOptimizeDeps(environment, manuallyIncludedDeps)
 
@@ -196,12 +205,14 @@ export function createDepsOptimizer(
         // Important, the scanner is dev only
         depsOptimizer.scanProcessing = new Promise((resolve) => {
           // Runs in the background in case blocking high priority tasks
+          // 在后台运行，以防阻塞高优先级任务
           ;(async () => {
             try {
               debug?.(colors.green(`scanning for dependencies...`))
-
+              // 包名:nodemodules里面的具体文件.js
               let deps: Record<string, string>
               try {
+                // 使用esbuild 扫描项目
                 discover = discoverProjectDependencies(
                   devToScanEnvironment(environment),
                 )
@@ -217,7 +228,7 @@ export function createDepsOptimizer(
                 )
                 return
               }
-
+              // debugger
               const manuallyIncluded = Object.keys(manuallyIncludedDepsInfo)
               discoveredDepsWhileScanning.push(
                 ...Object.keys(metadata.discovered).filter(
@@ -230,15 +241,18 @@ export function createDepsOptimizer(
               // This is also used by the CJS externalization heuristics in legacy mode
               for (const id of Object.keys(deps)) {
                 if (!metadata.discovered[id]) {
+                  // 为每个依赖在metadata添加信息
                   addMissingDep(id, deps[id])
                 }
               }
-
+              // 准备已知依赖(包括已经discovered和optimized的依赖)
               const knownDeps = prepareKnownDeps()
               startNextDiscoveredBatch()
 
               // For dev, we run the scanner and the first optimization
               // run on the background
+              // debugger
+              // 运行这个步骤之后 多个.vite文件夹 和下面的/deps_temp_efb3d972 文件夹 以及下面的package.json 文件
               optimizationResult = runOptimizeDeps(environment, knownDeps)
 
               // If the holdUntilCrawlEnd strategy is used, we wait until crawling has
@@ -632,6 +646,7 @@ export function createDepsOptimizer(
   // imports after the first request have been crawled (dynamic imports may also
   // be crawled if the browser requests them right away).
   async function onCrawlEnd() {
+    // debugger
     // switch after this point to a simple debounce strategy
     waitingForCrawlEnd = false
 
