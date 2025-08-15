@@ -25,6 +25,7 @@ import {
 import type { InlineConfig, ResolvedConfig } from '../config'
 import { isResolvedConfig, resolveConfig } from '../config'
 import {
+  type Hostname,
   diffDnsOrderChange,
   getServerUrlByHost,
   isInNodeModules,
@@ -45,7 +46,6 @@ import { ssrTransform } from '../ssr/ssrTransform'
 import { reloadOnTsconfigChange } from '../plugins/esbuild'
 import { bindCLIShortcuts } from '../shortcuts'
 import type { BindCLIShortcutsOptions } from '../shortcuts'
-import { ERR_OUTDATED_OPTIMIZED_DEP } from '../../shared/constants'
 import {
   CLIENT_DIR,
   DEFAULT_DEV_PORT,
@@ -67,7 +67,6 @@ import type { MinimalPluginContextWithoutEnvironment } from '../plugin'
 import type { PluginContainer } from './pluginContainer'
 import {
   BasicMinimalPluginContext,
-  ERR_CLOSED_SERVER,
   basePluginContextMeta,
   createPluginContainer,
 } from './pluginContainer'
@@ -93,12 +92,11 @@ import { timeMiddleware } from './middlewares/time'
 import { ModuleGraph } from './mixedModuleGraph'
 import type { ModuleNode } from './mixedModuleGraph'
 import { notFoundMiddleware } from './middlewares/notFound'
-import { buildErrorMessage, errorMiddleware } from './middlewares/error'
+import { errorMiddleware } from './middlewares/error'
 import type { HmrOptions, NormalizedHotChannel } from './hmr'
 import { handleHMRUpdate, updateModules } from './hmr'
 import { openBrowser as _openBrowser } from './openBrowser'
 import type { TransformOptions, TransformResult } from './transformRequest'
-import { transformRequest } from './transformRequest'
 import { searchForPackageRoot, searchForWorkspaceRoot } from './searchRoot'
 import type { DevEnvironment } from './environment'
 import { hostValidationMiddleware } from './middlewares/hostCheck'
@@ -538,7 +536,7 @@ export async function _createServer(
     client: () => environments.client.moduleGraph,
     ssr: () => environments.ssr.moduleGraph,
   })
-  const pluginContainer = createPluginContainer(environments)
+  let pluginContainer = createPluginContainer(environments)
 
   const closeHttpServer = createServerCloseFn(httpServer)
 
@@ -566,16 +564,29 @@ export async function _createServer(
     server._ssrCompatModuleRunner = undefined
   }
 
+  let hot = ws
   let server: ViteDevServer = {
     config,
     middlewares,
     httpServer,
     watcher,
     ws,
-    hot: ws,
+    get hot() {
+      warnFutureDeprecation(config, 'removeServerHot')
+      return hot
+    },
+    set hot(h) {
+      hot = h
+    },
 
     environments,
-    pluginContainer,
+    get pluginContainer() {
+      warnFutureDeprecation(config, 'removeServerPluginContainer')
+      return pluginContainer
+    },
+    set pluginContainer(p) {
+      pluginContainer = p
+    },
     get moduleGraph() {
       warnFutureDeprecation(config, 'removeServerModuleGraph')
       return moduleGraph
@@ -598,41 +609,15 @@ export async function _createServer(
         },
       })
     },
-    // environment.transformRequest and .warmupRequest don't take an options param for now,
-    // so the logic and error handling needs to be duplicated here.
-    // The only param in options that could be important is `html`, but we may remove it as
-    // that is part of the internal control flow for the vite dev server to be able to bail
-    // out and do the html fallback
     transformRequest(url, options) {
-      warnFutureDeprecation(
-        config,
-        'removeServerTransformRequest',
-        'server.transformRequest() is deprecated. Use environment.transformRequest() instead.',
-      )
+      warnFutureDeprecation(config, 'removeServerTransformRequest')
       const environment = server.environments[options?.ssr ? 'ssr' : 'client']
-      return transformRequest(environment, url, options)
+      return environment.transformRequest(url)
     },
-    async warmupRequest(url, options) {
-      try {
-        const environment = server.environments[options?.ssr ? 'ssr' : 'client']
-        await transformRequest(environment, url, options)
-      } catch (e) {
-        if (
-          e?.code === ERR_OUTDATED_OPTIMIZED_DEP ||
-          e?.code === ERR_CLOSED_SERVER
-        ) {
-          // these are expected errors
-          return
-        }
-        // Unexpected error, log the issue but avoid an unhandled exception
-        server.config.logger.error(
-          buildErrorMessage(e, [`Pre-transform error: ${e.message}`], false),
-          {
-            error: e,
-            timestamp: true,
-          },
-        )
-      }
+    warmupRequest(url, options) {
+      warnFutureDeprecation(config, 'removeServerWarmupRequest')
+      const environment = server.environments[options?.ssr ? 'ssr' : 'client']
+      return environment.warmupRequest(url)
     },
     transformIndexHtml(url, html, originalUrl) {
       return devHtmlTransformFn(server, url, html, originalUrl)
@@ -642,12 +627,23 @@ export async function _createServer(
       return ssrLoadModule(url, server, opts?.fixStacktrace)
     },
     ssrFixStacktrace(e) {
+      warnFutureDeprecation(
+        config,
+        'removeSsrLoadModule',
+        "ssrFixStacktrace doesn't need to be used for Environment Module Runners.",
+      )
       ssrFixStacktrace(e, server.environments.ssr.moduleGraph)
     },
     ssrRewriteStacktrace(stack: string) {
+      warnFutureDeprecation(
+        config,
+        'removeSsrLoadModule',
+        "ssrRewriteStacktrace doesn't need to be used for Environment Module Runners.",
+      )
       return ssrRewriteStacktrace(stack, server.environments.ssr.moduleGraph)
     },
     async reloadModule(module) {
+      warnFutureDeprecation(config, 'removeServerReloadModule')
       if (serverConfig.hmr !== false && module.file) {
         // TODO: Should we also update the node moduleGraph for backward compatibility?
         const environmentModule = (module._clientModule ?? module._ssrModule)!
@@ -660,14 +656,20 @@ export async function _createServer(
       }
     },
     async listen(port?: number, isRestart?: boolean) {
-      await startServer(server, port)
+      const hostname = await resolveHostname(config.server.host)
       if (httpServer) {
-        server.resolvedUrls = await resolveServerUrls(
-          httpServer,
-          config.server,
-          httpsOptions,
-          config,
-        )
+        httpServer.prependListener('listening', () => {
+          server.resolvedUrls = resolveServerUrls(
+            httpServer,
+            config.server,
+            hostname,
+            httpsOptions,
+            config,
+          )
+        })
+      }
+      await startServer(server, hostname, port)
+      if (httpServer) {
         if (!isRestart && config.server.open) server.openBrowser()
       }
       return server
@@ -1010,6 +1012,7 @@ export async function _createServer(
 
 async function startServer(
   server: ViteDevServer,
+  hostname: Hostname,
   inlinePort?: number,
 ): Promise<void> {
   const httpServer = server.httpServer
@@ -1018,7 +1021,6 @@ async function startServer(
   }
 
   const options = server.config.server
-  const hostname = await resolveHostname(options.host)
   const configPort = inlinePort ?? options.port
   // When using non strict port for the dev server, the running port can be different from the config one.
   // When restarting, the original port may be available but to avoid a switch of URL for the running

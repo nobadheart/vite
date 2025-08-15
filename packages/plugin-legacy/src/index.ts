@@ -3,6 +3,7 @@ import crypto from 'node:crypto'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { build, normalizePath } from 'vite'
+import * as vite from 'vite'
 import MagicString from 'magic-string'
 import type {
   BuildOptions,
@@ -124,24 +125,32 @@ const _require = createRequire(import.meta.url)
 const nonLeadingHashInFileNameRE = /[^/]+\[hash(?::\d+)?\]/
 const prefixedHashInFileNameRE = /\W?\[hash(?::\d+)?\]/
 
+// browsers supporting ESM + dynamic import + import.meta + async generator
+const modernTargetsEsbuild = [
+  'es2020',
+  'edge79',
+  'firefox67',
+  'chrome64',
+  'safari12',
+]
+// same with above but by browserslist syntax
+// es2020 = chrome 80+, safari 13.1+, firefox 72+, edge 80+
+// https://github.com/evanw/esbuild/issues/121#issuecomment-646956379
+const modernTargetsBabel =
+  'edge>=79, firefox>=67, chrome>=64, safari>=12, chromeAndroid>=64, iOS>=12'
+
 function viteLegacyPlugin(options: Options = {}): Plugin[] {
+  if ('rolldownVersion' in vite) {
+    const { default: viteLegacyPluginForRolldownVite } = _require(
+      '#legacy-for-rolldown-vite',
+    )
+    return viteLegacyPluginForRolldownVite(options)
+  }
+
   let config: ResolvedConfig
   let targets: Options['targets']
-  let modernTargets: Options['modernTargets']
-
-  // browsers supporting ESM + dynamic import + import.meta + async generator
-  const modernTargetsEsbuild = [
-    'es2020',
-    'edge79',
-    'firefox67',
-    'chrome64',
-    'safari12',
-  ]
-  // same with above but by browserslist syntax
-  // es2020 = chrome 80+, safari 13.1+, firefox 72+, edge 80+
-  // https://github.com/evanw/esbuild/issues/121#issuecomment-646956379
-  const modernTargetsBabel =
-    'edge>=79, firefox>=67, chrome>=64, safari>=12, chromeAndroid>=64, iOS>=12'
+  const modernTargets: Options['modernTargets'] =
+    options.modernTargets || modernTargetsBabel
 
   const genLegacy = options.renderLegacyChunks !== false
   const genModern = options.renderModernChunks !== false
@@ -199,6 +208,7 @@ function viteLegacyPlugin(options: Options = {}): Plugin[] {
   }
 
   let overriddenBuildTarget = false
+  let overriddenBuildTargetOnlyModern = false
   let overriddenDefaultModernTargets = false
   const legacyConfigPlugin: Plugin = {
     name: 'vite:legacy-config',
@@ -209,7 +219,7 @@ function viteLegacyPlugin(options: Options = {}): Plugin[] {
           config.build = {}
         }
 
-        if (!config.build.cssTarget) {
+        if (genLegacy && !config.build.cssTarget) {
           // Hint for esbuild that we are targeting legacy browsers when minifying CSS.
           // Full CSS compat table available at https://github.com/evanw/esbuild/blob/78e04680228cf989bdd7d471e02bbc2c8d345dc9/internal/compat/css_table.go
           // But note that only the `HexRGBA` feature affects the minify outcome.
@@ -223,16 +233,18 @@ function viteLegacyPlugin(options: Options = {}): Plugin[] {
           // See https://github.com/vitejs/vite/pull/10052#issuecomment-1242076461
           overriddenBuildTarget = config.build.target !== undefined
           overriddenDefaultModernTargets = options.modernTargets !== undefined
+        } else {
+          overriddenBuildTargetOnlyModern = config.build.target !== undefined
+        }
 
-          if (options.modernTargets) {
-            // Package is ESM only
-            const { default: browserslistToEsbuild } = await import(
-              'browserslist-to-esbuild'
-            )
-            config.build.target = browserslistToEsbuild(options.modernTargets)
-          } else {
-            config.build.target = modernTargetsEsbuild
-          }
+        if (options.modernTargets) {
+          // Package is ESM only
+          const { default: browserslistToEsbuild } = await import(
+            'browserslist-to-esbuild'
+          )
+          config.build.target = browserslistToEsbuild(options.modernTargets)
+        } else {
+          config.build.target = modernTargetsEsbuild
         }
       }
 
@@ -250,6 +262,13 @@ function viteLegacyPlugin(options: Options = {}): Plugin[] {
         config.logger.warn(
           colors.yellow(
             `plugin-legacy overrode 'build.target'. You should pass 'targets' as an option to this plugin with the list of legacy browsers to support instead.`,
+          ),
+        )
+      }
+      if (overriddenBuildTargetOnlyModern) {
+        config.logger.warn(
+          colors.yellow(
+            `plugin-legacy overrode 'build.target'. You should pass 'modernTargets' as an option to this plugin with the list of browsers to support instead.`,
           ),
         )
       }
@@ -376,7 +395,6 @@ function viteLegacyPlugin(options: Options = {}): Plugin[] {
       }
       config = _config
 
-      modernTargets = options.modernTargets || modernTargetsBabel
       if (isDebug) {
         console.log(`[@vitejs/plugin-legacy] modernTargets:`, modernTargets)
       }
@@ -554,7 +572,9 @@ function viteLegacyPlugin(options: Options = {}): Plugin[] {
         compact: !!config.build.minify,
         sourceMaps,
         inputSourceMap: undefined,
+        targets,
         assumptions,
+        browserslistConfigFile: false,
         presets: [
           // forcing our plugin to run before preset-env by wrapping it in a
           // preset so we can catch the injected import statements...
@@ -569,7 +589,18 @@ function viteLegacyPlugin(options: Options = {}): Plugin[] {
           ],
           [
             (await import('@babel/preset-env')).default,
-            createBabelPresetEnvOptions(targets, { needPolyfills }),
+            {
+              bugfixes: true,
+              modules: false,
+              useBuiltIns: needPolyfills ? 'usage' : false,
+              corejs: needPolyfills
+                ? {
+                    version: _require('core-js/package.json').version,
+                    proposals: false,
+                  }
+                : undefined,
+              shippedProposals: true,
+            },
           ],
         ],
       })
@@ -721,7 +752,7 @@ function viteLegacyPlugin(options: Options = {}): Plugin[] {
       if (isLegacyBundle(bundle, opts) && genModern) {
         // avoid emitting duplicate assets
         for (const name in bundle) {
-          if (bundle[name].type === 'asset' && !/.+\.map$/.test(name)) {
+          if (bundle[name].type === 'asset' && !name.endsWith('.map')) {
             delete bundle[name]
           }
         }
@@ -741,14 +772,27 @@ export async function detectPolyfills(
   const babel = await loadBabel()
   const result = babel.transform(code, {
     ast: true,
+    code: false,
     babelrc: false,
     configFile: false,
     compact: false,
+    targets,
     assumptions,
-    presets: [
+    browserslistConfigFile: false,
+    plugins: [
       [
-        (await import('@babel/preset-env')).default,
-        createBabelPresetEnvOptions(targets, {}),
+        (await import('babel-plugin-polyfill-corejs3')).default,
+        {
+          method: 'usage-global',
+          version: _require('core-js/package.json').version,
+          shippedProposals: true,
+        },
+      ],
+      [
+        (await import('babel-plugin-polyfill-regenerator')).default,
+        {
+          method: 'usage-global',
+        },
       ],
     ],
   })
@@ -762,27 +806,6 @@ export async function detectPolyfills(
         list.add(source)
       }
     }
-  }
-}
-
-function createBabelPresetEnvOptions(
-  targets: any,
-  { needPolyfills = true }: { needPolyfills?: boolean },
-) {
-  return {
-    targets,
-    bugfixes: true,
-    loose: false,
-    modules: false,
-    useBuiltIns: needPolyfills ? 'usage' : false,
-    corejs: needPolyfills
-      ? {
-          version: _require('core-js/package.json').version,
-          proposals: false,
-        }
-      : undefined,
-    shippedProposals: true,
-    ignoreBrowserslistConfig: true,
   }
 }
 

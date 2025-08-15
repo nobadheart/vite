@@ -280,9 +280,10 @@ export async function preview(
     logger,
   })
 
-  server.resolvedUrls = await resolveServerUrls(
+  server.resolvedUrls = resolveServerUrls(
     httpServer,
     config.preview,
+    hostname,
     httpsOptions,
     config,
   )

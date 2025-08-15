@@ -1,3 +1,46 @@
+## <small>[7.2.1](https://github.com/vitejs/vite/compare/plugin-legacy@7.2.0...plugin-legacy@7.2.1) (2025-08-07)</small>
+### Features
+
+* **legacy:** update plugin-legacy code for rolldown-vite ([6401a49](https://github.com/vitejs/vite/commit/6401a49d53fbff8a4a519bb2ad107b8a223250d6))
+
+## [7.2.0](https://github.com/vitejs/vite/compare/plugin-legacy@7.1.0...plugin-legacy@7.2.0) (2025-08-07)
+### Bug Fixes
+
+* **deps:** update all non-major dependencies ([#20537](https://github.com/vitejs/vite/issues/20537)) ([fc9a9d3](https://github.com/vitejs/vite/commit/fc9a9d3f1493caa3d614f64e0a61fd5684f0928b))
+* **legacy:** `modernTargets` should set `build.target` ([#20393](https://github.com/vitejs/vite/issues/20393)) ([76c5e40](https://github.com/vitejs/vite/commit/76c5e40864f42bb33ee7ea9184e32d5156fa1a4a))
+
+### Miscellaneous Chores
+
+* **deps:** update rolldown-related dependencies ([#20441](https://github.com/vitejs/vite/issues/20441)) ([f689d61](https://github.com/vitejs/vite/commit/f689d613429ae9452c74f8bc482d8cc2584ea6b8))
+* **deps:** update rolldown-related dependencies ([#20536](https://github.com/vitejs/vite/issues/20536)) ([8be2787](https://github.com/vitejs/vite/commit/8be278748a92b128c49a24619d8d537dd2b08ceb))
+
+## [7.1.0](https://github.com/vitejs/vite/compare/plugin-legacy@7.0.1...plugin-legacy@7.1.0) (2025-07-22)
+### Features
+
+* **legacy:** add rolldown-vite support ([#20417](https://github.com/vitejs/vite/issues/20417)) ([ab62ca4](https://github.com/vitejs/vite/commit/ab62ca4897aa969fb72508656da2eae7fb3906be))
+
+## <small>[7.0.1](https://github.com/vitejs/vite/compare/plugin-legacy@7.0.0...plugin-legacy@7.0.1) (2025-07-17)</small>
+### Bug Fixes
+
+* **deps:** update all non-major dependencies ([#20324](https://github.com/vitejs/vite/issues/20324)) ([3e81af3](https://github.com/vitejs/vite/commit/3e81af38a80c7617aba6bf3300d8b4267570f9cf))
+* **deps:** update all non-major dependencies ([#20366](https://github.com/vitejs/vite/issues/20366)) ([43ac73d](https://github.com/vitejs/vite/commit/43ac73da27b3907c701e95e6a7d28fde659729ec))
+* **deps:** update all non-major dependencies ([#20406](https://github.com/vitejs/vite/issues/20406)) ([1a1cc8a](https://github.com/vitejs/vite/commit/1a1cc8a435a21996255b3e5cc75ed4680de2a7f3))
+* **legacy:** don't lower CSS if legacy chunks are not generated ([#20392](https://github.com/vitejs/vite/issues/20392)) ([d2c81f7](https://github.com/vitejs/vite/commit/d2c81f7c13030c08becd8a768182074eedb87333))
+
+### Performance Improvements
+
+* **legacy:** skip lowering when detecting polyfills ([#20387](https://github.com/vitejs/vite/issues/20387)) ([7cc0338](https://github.com/vitejs/vite/commit/7cc0338de3a67597956af58e931e46e7913c063b))
+
+### Miscellaneous Chores
+
+* **deps:** update rolldown-related dependencies ([#20323](https://github.com/vitejs/vite/issues/20323)) ([30d2f1b](https://github.com/vitejs/vite/commit/30d2f1b38c72387ffdca3ee4746730959a020b59))
+* group commits by category in changelog ([#20310](https://github.com/vitejs/vite/issues/20310)) ([41e83f6](https://github.com/vitejs/vite/commit/41e83f62b1adb65f5af4c1ec006de1c845437edc))
+
+### Code Refactoring
+
+* **legacy:** use Rollup type export from Vite ([#20335](https://github.com/vitejs/vite/issues/20335)) ([d62dc33](https://github.com/vitejs/vite/commit/d62dc3321db05d91e74facff51799496ce8601f3))
+* use `foo.endsWith("bar")` instead of `/bar$/.test(foo)` ([#20413](https://github.com/vitejs/vite/issues/20413)) ([862e192](https://github.com/vitejs/vite/commit/862e192d21f66039635a998724bdc6b94fd293a0))
+
 ## [7.0.0](https://github.com/vitejs/vite/compare/plugin-legacy@7.0.0-beta.1...plugin-legacy@7.0.0) (2025-06-24)
 ### Miscellaneous Chores
 
