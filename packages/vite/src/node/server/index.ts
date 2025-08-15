@@ -517,6 +517,7 @@ export async function _createServer(
   for (const [name, environmentOptions] of Object.entries(
     config.environments,
   )) {
+    // 初始化依赖优化器
     environments[name] = await environmentOptions.dev.createEnvironment(
       name,
       config,
@@ -894,7 +895,7 @@ export async function _createServer(
   }
 
   // Internal middlewares ------------------------------------------------------
-
+  // 缓存请求的中间件
   middlewares.use(cachedTransformMiddleware(server))
 
   // proxy
@@ -930,7 +931,7 @@ export async function _createServer(
     middlewares.use(servePublicMiddleware(server, publicFiles))
   }
 
-  // main transform middleware
+  // main transform middleware 主要处理请求的中间件
   middlewares.use(transformMiddleware(server))
 
   // serve static files
@@ -992,6 +993,7 @@ export async function _createServer(
     const listen = httpServer.listen.bind(httpServer)
     httpServer.listen = (async (port: number, ...args: any[]) => {
       try {
+        // 依赖预构建init
         await initServer(true)
       } catch (e) {
         httpServer.emit('error', e)
