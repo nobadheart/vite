@@ -188,14 +188,13 @@ function extractImportedBindings(
     }
   }
 }
-
+// 在父文件的transform这个钩子里面把dayjs转化为缓存文件.vite/deps/dayjs.js?v=8a3c0d19
 /**
  * Dev-only plugin that lexes, resolves, rewrites and analyzes url imports.
  *
  * - Imports are resolved to ensure they exist on disk
  *
  * - Lexes HMR accept calls and updates import relationships in the module graph
- *
  * - Bare module imports are resolved (by @rollup-plugin/node-resolve) to
  * absolute file paths, e.g.
  *
@@ -252,8 +251,11 @@ export function importAnalysisPlugin(config: ResolvedConfig): Plugin {
 
   return {
     name: 'vite:import-analysis',
-
+    // source是load返回的code  importer就是文件的绝对路径
     async transform(source, importer) {
+      // if (importer.includes('src/index.js')) {
+      //   debugger
+      // }
       const environment = this.environment as DevEnvironment
       const ssr = environment.config.consumer === 'server'
       const moduleGraph = environment.moduleGraph
@@ -269,6 +271,7 @@ export function importAnalysisPlugin(config: ResolvedConfig): Plugin {
       let exports!: readonly ExportSpecifier[]
       source = stripBomTag(source)
       try {
+        // 拿到imports和exports
         ;[imports, exports] = parseImports(source)
       } catch (_e: unknown) {
         const e = _e as EsModuleLexerParseError
