@@ -7,6 +7,7 @@ import type { ResolvedServerUrls } from './server'
 
 export type LogType = 'error' | 'warn' | 'info'
 export type LogLevel = LogType | 'silent'
+// 日志的接口 对象
 export interface Logger {
   info(msg: string, options?: LogOptions): void
   warn(msg: string, options?: LogOptions): void
