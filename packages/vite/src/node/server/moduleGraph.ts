@@ -380,7 +380,7 @@ export class EnvironmentModuleGraph {
       }
       this._setUnresolvedUrlToModule(rawUrl, mod)
       return mod
-    })()
+    })() // 立即执行函数返回一个promise
 
     // Also register the clean url to the module, so that we can short-circuit
     // resolving the same url twice
