@@ -38,7 +38,7 @@ import { createOptimizeDepsIncludeResolver, expandGlobIds } from './resolve'
 const debug = createDebugger('vite:deps')
 
 const jsExtensionRE = /\.js$/i
-const jsMapExtensionRE = /\.js\.map$/i
+const jsMapExtensionRE = /\.js\.map$/i //以.js.map结尾的文件
 
 export type ExportsData = {
   hasModuleSyntax: boolean
@@ -130,7 +130,9 @@ export interface DepOptimizationConfig {
    * Automatic dependency discovery. When `noDiscovery` is true, only dependencies
    * listed in `include` will be optimized. The scanner isn't run for cold start
    * in this case. CJS-only dependencies must be present in `include` during dev.
-   * @default false
+   * @default false 为true时，include 里面必须包含有cjs包 比如dayjs 不然会报错 模块没有导出对象
+   * 如果没有依赖于构建 比如exclude 里面有lodash-es 则不会构建lodash-es为一个文件，那么浏览器会请求全部的js文件 几百个请求
+   * 并且import cloneDeep from 'lodash-es/cloneDeep'性能比    import {cloneDeep} from 'lodash-es' 好 第二种全部都会请求
    */
   noDiscovery?: boolean
   /**
@@ -324,10 +326,10 @@ export function initDepsOptimizerMetadata(
 ): DepOptimizationMetadata {
   const { lockfileHash, configHash, hash } = getDepHash(environment)
   return {
-    hash,
-    lockfileHash,
-    configHash,
-    browserHash: getOptimizedBrowserHash(hash, {}, timestamp),
+    hash, // lock和config 一起生成的hash
+    lockfileHash, // lock文件的hash
+    configHash, // config部分配置的hash
+    browserHash: getOptimizedBrowserHash(hash, {}, timestamp), // 根据 hash deps 时间戳 生成浏览器哈希
     optimized: {},
     chunks: {},
     discovered: {},
@@ -340,7 +342,7 @@ export function addOptimizedDepInfo(
   type: 'optimized' | 'discovered' | 'chunks',
   depInfo: OptimizedDepInfo,
 ): OptimizedDepInfo {
-  metadata[type][depInfo.id] = depInfo
+  metadata[type][depInfo.id] = depInfo // 里面的file: "C:/Users/Administrator/Desktop/study/vite/playground/server-demo/node_modules/.vite/deps/dayjs.js"
   metadata.depInfoList.push(depInfo)
   return depInfo
 }
@@ -361,26 +363,30 @@ export async function loadCachedDepOptimizationMetadata(
   if (firstLoadCachedDepOptimizationMetadata) {
     firstLoadCachedDepOptimizationMetadata = false
     // Fire up a clean up of stale processing deps dirs if older process exited early
-    setTimeout(
-      () => cleanupDepsCacheStaleDirs(environment.getTopLevelConfig()),
-      0,
-    )
+    // 如果进程意外退出 清理缓存
+    setTimeout(() => {
+      cleanupDepsCacheStaleDirs(environment.getTopLevelConfig())
+    }, 0)
   }
-
+  // 'C:/Users/Administrator/Desktop/study/vite/playground/server-demo/node_modules/.vite/deps'
   const depsCacheDir = getDepsCacheDir(environment)
 
   if (!force) {
     let cachedMetadata: DepOptimizationMetadata | undefined
     try {
+      // matadata.json的文件路径
       const cachedMetadataPath = path.join(depsCacheDir, METADATA_FILENAME)
       cachedMetadata = parseDepsOptimizerMetadata(
-        await fsp.readFile(cachedMetadataPath, 'utf-8'),
+        await fsp.readFile(cachedMetadataPath, 'utf-8'), // 读取metadata.json文件数据
         depsCacheDir,
       )
     } catch {}
+    // debugger
     // hash is consistent, no need to re-bundle
     if (cachedMetadata) {
+      // 文件存在
       if (cachedMetadata.lockfileHash !== getLockfileHash(environment)) {
+        // 锁文件的hash不一致 重新构建
         environment.logger.info(
           'Re-optimizing dependencies because lockfile has changed',
           {
@@ -388,6 +394,7 @@ export async function loadCachedDepOptimizationMetadata(
           },
         )
       } else if (cachedMetadata.configHash !== getConfigHash(environment)) {
+        // config相关配置的hash不一致 重新构建
         environment.logger.info(
           'Re-optimizing dependencies because vite config has changed',
           {
@@ -395,24 +402,29 @@ export async function loadCachedDepOptimizationMetadata(
           },
         )
       } else {
+        // hash没有改变
         log?.(
           `(${environment.name}) Hash is consistent. Skipping. Use --force to override.`,
         )
         // Nothing to commit or cancel as we are using the cache, we only
         // need to resolve the processing promise so requests can move on
+        // 直接返回
         return cachedMetadata
       }
     }
   } else {
+    // --force 强制重新构建
     environment.logger.info('Forced re-optimization of dependencies', {
       timestamp: true,
     })
   }
 
   // Start with a fresh cache
+  // 删除文件夹
   debug?.(
     `(${environment.name}) ${colors.green(`removing old cache dir ${depsCacheDir}`)}`,
   )
+  // 删除文件或者目录 删除.vite/deps目录 // 把deps文件夹本身也删除了
   await fsp.rm(depsCacheDir, { recursive: true, force: true })
 }
 
@@ -420,6 +432,7 @@ export async function loadCachedDepOptimizationMetadata(
  * Initial optimizeDeps at server start. Perform a fast scan using esbuild to
  * find deps to pre-bundle and include user hard-coded dependencies
  */
+// 服务器开始的时候 使用esbuild快速扫描 用户项目的依赖 放在result.then里面
 export function discoverProjectDependencies(environment: ScanEnvironment): {
   cancel: () => Promise<void>
   result: Promise<Record<string, string>>
@@ -429,6 +442,8 @@ export function discoverProjectDependencies(environment: ScanEnvironment): {
   return {
     cancel,
     result: result.then(({ deps, missing }) => {
+      // debugger
+      //deps :{dayjs:'./node_modules/.vite/dayjs.js'}
       const missingIds = Object.keys(missing)
       if (missingIds.length) {
         throw new Error(
@@ -488,18 +503,21 @@ export function runOptimizeDeps(
   result: Promise<DepOptimizationResult>
 } {
   const optimizerContext = { cancelled: false }
-
+  // node_modules/.vite/deps
   const depsCacheDir = getDepsCacheDir(environment)
+  // node_modules/.vite/deps_temp_6365c2f5
   const processingCacheDir = getProcessingDepsCacheDir(environment)
 
   // Create a temporary directory so we don't need to delete optimized deps
   // until they have been processed. This also avoids leaving the deps cache
   // directory in a corrupted state if there is an error
+  // 创建临时目录 'C:/Users/Administrator/Desktop/study/vite/playground/server-demo/node_modules/.vite/deps_temp_6365c2f5'
   fs.mkdirSync(processingCacheDir, { recursive: true })
 
   // a hint for Node.js
   // all files in the cache directory should be recognized as ES modules
   debug?.(colors.green(`creating package.json in ${processingCacheDir}`))
+  // 创建package.json 文件
   fs.writeFileSync(
     path.resolve(processingCacheDir, 'package.json'),
     `{\n  "type": "module"\n}\n`,
@@ -599,6 +617,7 @@ export function runOptimizeDeps(
   }
 
   if (!qualifiedIds.length) {
+    // 没有需要预构建的依赖
     // No deps to optimize, we still commit the processing cache dir to remove
     // the previous optimized deps if they exist, and let the next server start
     // skip the scanner step if the lockfile hasn't changed
@@ -624,6 +643,7 @@ export function runOptimizeDeps(
   )
 
   const runResult = preparedRun.then(({ context, idToExports }) => {
+    // debugger
     function disposeContext() {
       return context?.dispose().catch((e) => {
         environment.logger.error('Failed to dispose esbuild context', {
@@ -637,8 +657,10 @@ export function runOptimizeDeps(
     }
 
     return context
-      .rebuild()
+      .rebuild() // rebuild打包 根据depsInfo 和 配置的esbuildOptions 进行打包 把他打包到node_modules/.vite/deps_temp_6365c2f5目录下 生成对应的js和map文件
       .then((result) => {
+        debugger
+        // 这里已经生成了临时的dayjs.js dayjs.js.map文件
         const meta = result.metafile!
 
         // the paths in `meta.outputs` are relative to `process.cwd()`
@@ -655,6 +677,7 @@ export function runOptimizeDeps(
           )
 
           const { exportsData, ...info } = depsInfo[id]
+          // 写入meata.json的 optimized 字段
           addOptimizedDepInfo(metadata, 'optimized', {
             ...info,
             // We only need to hash the output.imports in to check for stability, but adding the hash
@@ -678,6 +701,8 @@ export function runOptimizeDeps(
 
         for (const o of Object.keys(meta.outputs)) {
           if (!jsMapExtensionRE.test(o)) {
+            // 如果是打包后的js文件
+            // debugger
             const id = path
               .relative(processingCacheDirOutputPath, o)
               .replace(jsExtensionRE, '')
@@ -720,6 +745,7 @@ export function runOptimizeDeps(
         debug?.(
           `Dependencies bundled in ${(performance.now() - start).toFixed(2)}ms`,
         )
+        // debugger
 
         return successfulResult
       })
@@ -752,6 +778,7 @@ export function runOptimizeDeps(
   }
 }
 
+// 准备esbuild优化器运行
 async function prepareEsbuildOptimizerRun(
   environment: Environment,
   depsInfo: Record<string, OptimizedDepInfo>,
@@ -821,7 +848,7 @@ async function prepareEsbuildOptimizerRun(
     plugins.push(esbuildCjsExternalPlugin(external, platform))
   }
   plugins.push(esbuildDepPlugin(environment, flatIdDeps, external))
-
+  // debugger
   const context = await esbuild.context({
     absWorkingDir: process.cwd(),
     entryPoints: Object.keys(flatIdDeps),
@@ -855,6 +882,7 @@ async function prepareEsbuildOptimizerRun(
   return { context, idToExports }
 }
 
+// 添加手动添加的依赖 include
 export async function addManuallyIncludedOptimizeDeps(
   environment: Environment,
   deps: Record<string, string>,
@@ -926,6 +954,7 @@ function getDepsCacheSuffix(environment: Environment): string {
   return environment.name === 'client' ? '' : `_${environment.name}`
 }
 
+// 获取依赖预构建的缓存目录
 export function getDepsCacheDir(environment: Environment): string {
   return getDepsCacheDirPrefix(environment) + getDepsCacheSuffix(environment)
 }
@@ -981,6 +1010,7 @@ export function createIsOptimizedDepUrl(
   }
 }
 
+// 转换metadata.json文件数据
 function parseDepsOptimizerMetadata(
   jsonMetadata: string,
   depsCacheDir: string,
@@ -990,6 +1020,7 @@ function parseDepsOptimizerMetadata(
       // Paths can be absolute or relative to the deps cache dir where
       // the _metadata.json is located
       if (key === 'file' || key === 'src') {
+        // 转化路径
         return normalizePath(path.resolve(depsCacheDir, value))
       }
       return value
@@ -1103,6 +1134,8 @@ export async function extractExportsData(
   environment: Environment,
   filePath: string,
 ): Promise<ExportsData> {
+  // debugger
+
   await init
 
   const { optimizeDeps } = environment.config
@@ -1242,9 +1275,10 @@ const lockfileFormats = [
 })
 const lockfilePaths = lockfileFormats.map((l) => l.path)
 
+// 根据config配置生成一个对象并且返回一个JSON字符串 然后获取哈希
 function getConfigHash(environment: Environment): string {
   // Take config into account
-  // only a subset of config options that can affect dep optimization
+  // only a subset of（子集 一部分） config options that can affect dep optimization
   const { config } = environment
   const { optimizeDeps } = config
   const content = JSON.stringify(
@@ -1271,7 +1305,7 @@ function getConfigHash(environment: Environment): string {
     },
     (_, value) => {
       if (typeof value === 'function' || value instanceof RegExp) {
-        return value.toString()
+        return value.toString() // 如果配置项是函数或者正则表达式 则返回字符串
       }
       return value
     },
@@ -1279,7 +1313,9 @@ function getConfigHash(environment: Environment): string {
   return getHash(content)
 }
 
+// 获取lock文件的hash
 function getLockfileHash(environment: Environment): string {
+  // lockfilePath：'C:\\Users\\Administrator\\Desktop\\study\\vite\\node_modules\\.pnpm\\lock.yaml'
   const lockfilePath = lookupFile(environment.config.root, lockfilePaths)
   let content = lockfilePath ? fs.readFileSync(lockfilePath, 'utf-8') : ''
   if (lockfilePath) {
@@ -1318,6 +1354,7 @@ function getDepHash(environment: Environment): {
   }
 }
 
+// 获取浏览器哈希
 function getOptimizedBrowserHash(
   hash: string,
   deps: Record<string, string>,
