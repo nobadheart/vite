@@ -413,7 +413,7 @@ class EnvironmentPluginContainer<Env extends Environment = Environment> {
         plugin.name,
         prettifyUrl(id, this.environment.config.root),
       )
-
+      // resolveId插件有一个返回结果就直接return就直接跳过剩余的插件hook
       // resolveId() is hookFirst - first non-null result is returned.
       break
     }
@@ -439,10 +439,14 @@ class EnvironmentPluginContainer<Env extends Environment = Environment> {
     }
   }
 
+  // load 有短路效果 钩子如果有结果直接返回
   async load(id: string): Promise<LoadResult | null> {
     const ssr = this.environment.config.consumer === 'server'
     const options = { ssr }
     const ctx = new LoadPluginContext(this)
+    if (id.includes('src/index.js')) {
+      debugger
+    }
     for (const plugin of this.getSortedPlugins('load')) {
       if (this._closed && this.environment.config.dev.recoverable)
         throwClosedServerError()
@@ -467,6 +471,7 @@ class EnvironmentPluginContainer<Env extends Environment = Environment> {
     return null
   }
 
+  // transform没有短路效果 会执行所有的插件
   async transform(
     code: string,
     id: string,
@@ -480,7 +485,8 @@ class EnvironmentPluginContainer<Env extends Environment = Environment> {
 
     const ctx = new TransformPluginContext(this, id, code, inMap as SourceMap)
     ctx._addedImports = this._getAddedImports(id)
-
+    if (id.includes('src/index.js')) {
+    }
     for (const plugin of this.getSortedPlugins('transform')) {
       if (this._closed && this.environment.config.dev.recoverable)
         throwClosedServerError()
@@ -499,7 +505,7 @@ class EnvironmentPluginContainer<Env extends Environment = Environment> {
       } catch (e) {
         ctx.error(e)
       }
-      if (!result) continue
+      if (!result) continue // transform 没有结果 继续其他的工资
       debugPluginTransform?.(
         timeFrom(start),
         plugin.name,
