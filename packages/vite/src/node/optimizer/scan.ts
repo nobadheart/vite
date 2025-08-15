@@ -110,6 +110,7 @@ const htmlTypesRE = /\.(html|vue|svelte|astro|imba)$/
 // use Acorn because it's slow. Luckily this doesn't have to be bullet proof
 // since even missed imports can be caught at runtime, and false positives will
 // simply be ignored.
+// 匹配 import 语句
 export const importsRE =
   /(?<!\/\/.*)(?<=^|;|\*\/)\s*import(?!\s+type)(?:[\w*{}\n\r\t, ]+from)?\s*("[^"]+"|'[^']+')\s*(?=$|;|\/\/|\/\*)/gm
 
@@ -120,6 +121,7 @@ export function scanImports(environment: ScanEnvironment): {
     missing: Record<string, string>
   }>
 } {
+  // debugger
   const start = performance.now()
   const { config } = environment
 
@@ -131,6 +133,7 @@ export function scanImports(environment: ScanEnvironment): {
   }
 
   async function scan() {
+    // 获取入口文件路径'C:/Users/Administrator/Desktop/study/vite/playground/server-demo/index.html'
     const entries = await computeEntries(environment)
     if (!entries.length) {
       if (!config.optimizeDeps.entries && !config.optimizeDeps.include) {
@@ -164,9 +167,23 @@ export function scanImports(environment: ScanEnvironment): {
       )
       context = await esbuildContext
       if (scanContext.cancelled) return
-
+      // debugger
       try {
+        // 不需要用到打包后的内容 所以在配置esbuild的时候 write: false
+        // 目的： 在resolveId的时候 收集bare模块 比如dayjs 找到dayjs的真实的node_modules路径 然后把他存在 deps对象之中
         await context!.rebuild()
+        // const { outputFiles } = await context!.rebuild()
+        // // 把esbuild打包后的文件写入到文件系统
+        // for (const file of outputFiles!) {
+        //   const filePath = path.join(process.cwd(), '/esbuild/index.js' )
+        //   // 确保目录存在
+        //   fs.mkdirSync(path.join(process.cwd(), '/esbuild'), {
+        //     recursive: true,
+        //   })
+        //   await fsp.writeFile(filePath, file.contents)
+        // }
+
+        // debugger
         return {
           // Ensure a fixed order so hashes are stable and improve logs
           deps: orderedDependencies(deps),
@@ -214,10 +231,13 @@ export function scanImports(environment: ScanEnvironment): {
     }
   }
   const result = scan()
-
+  // debugger
   return {
     cancel,
-    result: result.then((res) => res ?? { deps: {}, missing: {} }),
+    result: result.then((res) => {
+      // debugger
+      return res ?? { deps: {}, missing: {} }
+    }),
   }
 }
 
@@ -298,7 +318,7 @@ async function prepareEsbuildScanner(
       tsconfigRaw = { compilerOptions: { experimentalDecorators: true } }
     }
   }
-
+  // debugger
   return await esbuild.context({
     absWorkingDir: process.cwd(),
     write: false,
@@ -318,8 +338,10 @@ async function prepareEsbuildScanner(
 function orderedDependencies(deps: Record<string, string>) {
   const depsList = Object.entries(deps)
   // Ensure the same browserHash for the same set of dependencies
-  depsList.sort((a, b) => a[0].localeCompare(b[0]))
-  return Object.fromEntries(depsList)
+  // str1.localeCompare(str2) 比较两个字符串首字母顺序：str1在前返回-1； 位置相同 返回0；  str1在后面 返回1
+  depsList.sort((a, b) => a[0].localeCompare(b[0])) // 返回负数 a在前面；0 位置不变； 返回正数 b在前面
+  // 把首字母的放在前面
+  return Object.fromEntries(depsList) // 返回一个对象
 }
 
 async function globEntries(
@@ -377,6 +399,7 @@ function esbuildScanPlugin(
   entries: string[],
 ): Plugin {
   const seen = new Map<string, string | undefined>()
+  // 调用vite的resolveId插件 其中在插件vite:resolve中 把裸模块转换成了真实的node_modules路径
   async function resolveId(
     id: string,
     importer?: string,
@@ -392,6 +415,8 @@ function esbuildScanPlugin(
     if (seen.has(key)) {
       return seen.get(key)
     }
+    //{id:"C:/Users/Administrator/Desktop/study/vite/node_modules/.pnpm/dayjs@1.11.13/node_modules/dayjs/dayjs.min.js"}
+    // 拿到第三方包的真是node_modules路径
     const resolved = await resolveId(id, importer)
     const res = resolved?.id
     seen.set(key, res)
@@ -418,6 +443,7 @@ function esbuildScanPlugin(
     id: string,
     loader: Loader,
   ) => {
+    // debugger
     let transpiledContents
     // transpile because `transformGlobImport` only expects js
     if (loader !== 'js') {
@@ -444,13 +470,13 @@ function esbuildScanPlugin(
       // external urls
       build.onResolve({ filter: externalRE }, ({ path }) => ({
         path,
-        external: true,
+        external: true, //排除 不管他
       }))
 
       // data urls
       build.onResolve({ filter: dataUrlRE }, ({ path }) => ({
         path,
-        external: true,
+        external: true, //排除 不管他
       }))
 
       // local scripts (`<script>` in Svelte and `<script setup>` in Vue)
@@ -617,18 +643,21 @@ function esbuildScanPlugin(
       )
 
       // bare imports: record and externalize ----------------------------------
+      // 裸模块导入 即第三方包 记录到depImports 中并且 排除
       build.onResolve(
         {
           // avoid matching windows volume
           filter: /^[\w@][^:]/,
         },
         async ({ path: id, importer }) => {
+          // debugger
           if (moduleListContains(exclude, id)) {
             return externalUnlessEntry({ path: id })
           }
           if (depImports[id]) {
             return externalUnlessEntry({ path: id })
           }
+          // 'C:/Users/Administrator/Desktop/study/vite/node_modules/.pnpm/dayjs@1.11.13/node_modules/dayjs/dayjs.min.js'
           const resolved = await resolve(id, importer)
           if (resolved) {
             if (shouldExternalizeDep(resolved, id)) {
@@ -639,6 +668,7 @@ function esbuildScanPlugin(
               if (isOptimizable(resolved, optimizeDepsOptions)) {
                 depImports[id] = resolved
               }
+              // 排除
               return externalUnlessEntry({ path: id })
             } else if (isScannable(resolved, optimizeDepsOptions.extensions)) {
               const namespace = htmlTypesRE.test(resolved) ? 'html' : undefined
