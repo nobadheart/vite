@@ -93,7 +93,7 @@ export const JS_TYPES_RE = /\.(?:j|t)sx?$|\.mjs$/
 export const CSS_LANGS_RE =
   /\.(css|less|sass|scss|styl|stylus|pcss|postcss|sss)(?:$|\?)/
 
-export const OPTIMIZABLE_ENTRY_RE = /\.[cm]?[jt]s$/
+export const OPTIMIZABLE_ENTRY_RE = /\.[cm]?[jt]s$/ // 匹配js文件
 
 export const SPECIAL_QUERY_RE = /[?&](?:worker|sharedworker|raw|url)\b/
 
