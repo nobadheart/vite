@@ -150,10 +150,13 @@ export class DevEnvironment extends BaseEnvironment {
       this.depsOptimizer = undefined
     } else {
       this.depsOptimizer = (
-        optimizeDeps.noDiscovery
+        optimizeDeps.noDiscovery // 有optimizeDeps:{noDiscovery:true} 选项的话
           ? createExplicitDepsOptimizer
           : createDepsOptimizer
-      )(this)
+      )(
+        // 依赖预构建的入口
+        this,
+      )
     }
   }
 
@@ -185,6 +188,8 @@ export class DevEnvironment extends BaseEnvironment {
    */
   async listen(server: ViteDevServer): Promise<void> {
     this.hot.listen()
+    // debugger
+    //  init依赖预构建
     await this.depsOptimizer?.init()
     warmupFiles(server, this)
   }
