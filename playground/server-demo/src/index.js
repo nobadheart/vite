@@ -1,5 +1,6 @@
-// import.meta.glob('./dir11111/*.js')
-// console.log(1221312)
-import.meta.hot.accept(() => {
-  console.log('accept1')
-})
+import dayjs from 'dayjs'
+import axios from 'axios'
+import cloneDeep from 'lodash-es/cloneDeep'
+console.log(axios,111,cloneDeep)
+console.log(dayjs().format('YYYY-MM-DD HH:mm:ss'))
+
