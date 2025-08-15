@@ -292,14 +292,14 @@ export function isSameFileUri(file1: string, file2: string): boolean {
   )
 }
 
-export const externalRE = /^([a-z]+:)?\/\//
+export const externalRE = /^([a-z]+:)?\/\// // 用来匹配所有以 http://、https://、file:// 或 // 开头的路径，常用于识别“远程模块”或“外部资源地址”。
 export const isExternalUrl = (url: string): boolean => externalRE.test(url)
 
-export const dataUrlRE = /^\s*data:/i
+export const dataUrlRE = /^\s*data:/i // 它是用来判断一个字符串是否是 Data URL（数据 URL） 的。
 export const isDataUrl = (url: string): boolean => dataUrlRE.test(url)
 
-export const virtualModuleRE = /^virtual-module:.*/
-export const virtualModulePrefix = 'virtual-module:'
+export const virtualModuleRE = /^virtual-module:.*/ // 虚拟模块的正则表达式，用于匹配以 "virtual-module:" 开头的内容。
+export const virtualModulePrefix = 'virtual-module:' // 虚拟模块的前缀，用于标识虚拟模块。
 
 // NOTE: We should start relying on the "Sec-Fetch-Dest" header instead of this
 // hardcoded list. We can eventually remove this function when the minimum version
@@ -1087,10 +1087,11 @@ export const requestQueryMaybeEscapedSplitRE = /\\?\?(?!.*[/|}])/
 
 export const blankReplacer = (match: string): string => ' '.repeat(match.length)
 
+// 获取哈希
 export function getHash(text: Buffer | string, length = 8): string {
-  const h = crypto.hash('sha256', text, 'hex').substring(0, length)
+  const h = crypto.hash('sha256', text, 'hex').substring(0, length) //‘hex’ 16禁止
   if (length <= 64) return h
-  return h.padEnd(length, '_')
+  return h.padEnd(length, '_') // 后面补齐_
 }
 
 export const requireResolveFromRootWithFallback = (
