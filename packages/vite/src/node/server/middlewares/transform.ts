@@ -125,6 +125,9 @@ export function transformMiddleware(
   const publicPath = `${publicDir.slice(root.length)}/`
 
   return async function viteTransformMiddleware(req, res, next) {
+    // if (req.url?.includes('dayjs')) {
+    //   debugger
+    // }
     const environment = server.environments.client
 
     if (req.method !== 'GET' || knownIgnoreList.has(req.url!)) {
