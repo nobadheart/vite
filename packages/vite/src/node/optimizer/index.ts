@@ -376,6 +376,7 @@ export async function loadCachedDepOptimizationMetadata(
     try {
       // matadata.json的文件路径
       const cachedMetadataPath = path.join(depsCacheDir, METADATA_FILENAME)
+      // 获取metadata.json文件数据
       cachedMetadata = parseDepsOptimizerMetadata(
         await fsp.readFile(cachedMetadataPath, 'utf-8'), // 读取metadata.json文件数据
         depsCacheDir,
@@ -522,7 +523,7 @@ export function runOptimizeDeps(
     path.resolve(processingCacheDir, 'package.json'),
     `{\n  "type": "module"\n}\n`,
   )
-
+  // 初始化metadata 里面包含hash 和 一些依赖信息
   const metadata = initDepsOptimizerMetadata(environment)
 
   metadata.browserHash = getOptimizedBrowserHash(
@@ -558,6 +559,7 @@ export function runOptimizeDeps(
     metadata,
     cancel: cleanUp,
     commit: async () => {
+      debugger
       if (cleaned) {
         throw new Error(
           'Can not commit a Deps Optimization run as it was cancelled',
@@ -591,11 +593,13 @@ export function runOptimizeDeps(
       if (isWindows) {
         if (depsCacheDirPresent) {
           debug?.(colors.green(`renaming ${depsCacheDir} to ${temporaryPath}`))
+          // 把旧的.vite/deps文件夹命名为临时文件夹
           await safeRename(depsCacheDir, temporaryPath)
         }
         debug?.(
           colors.green(`renaming ${processingCacheDir} to ${depsCacheDir}`),
         )
+        // 把最新的的.vite/deps_temp_6365c2f5文件夹命名为.vite/deps文件夹
         await safeRename(processingCacheDir, depsCacheDir)
       } else {
         if (depsCacheDirPresent) {
@@ -609,6 +613,7 @@ export function runOptimizeDeps(
       }
 
       // Delete temporary path in the background
+      // 删除旧的.vite/deps_temp_文件夹
       if (depsCacheDirPresent) {
         debug?.(colors.green(`removing cache temp dir ${temporaryPath}`))
         fsp.rm(temporaryPath, { recursive: true, force: true })
@@ -635,6 +640,7 @@ export function runOptimizeDeps(
 
   const start = performance.now()
 
+  // 准备esbuild优化运行器
   const preparedRun = prepareEsbuildOptimizerRun(
     environment,
     depsInfo,
@@ -659,7 +665,7 @@ export function runOptimizeDeps(
     return context
       .rebuild() // rebuild打包 根据depsInfo 和 配置的esbuildOptions 进行打包 把他打包到node_modules/.vite/deps_temp_6365c2f5目录下 生成对应的js和map文件
       .then((result) => {
-        debugger
+        // debugger
         // 这里已经生成了临时的dayjs.js dayjs.js.map文件
         const meta = result.metafile!
 
@@ -698,7 +704,7 @@ export function runOptimizeDeps(
             ),
           })
         }
-
+        // 遍历打包后的文件
         for (const o of Object.keys(meta.outputs)) {
           if (!jsMapExtensionRE.test(o)) {
             // 如果是打包后的js文件
@@ -721,6 +727,7 @@ export function runOptimizeDeps(
               })
             }
           } else {
+            // 是map文件
             // workaround Firefox warning by removing blank source map reference
             // https://github.com/evanw/esbuild/issues/3945
             const output = meta.outputs[o]
@@ -778,7 +785,7 @@ export function runOptimizeDeps(
   runResult.catch(() => {
     cleanUp()
   })
-
+  debugger
   return {
     async cancel() {
       optimizerContext.cancelled = true

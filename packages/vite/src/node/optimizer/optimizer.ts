@@ -53,7 +53,7 @@ export function createDepsOptimizer(
   // noDiscovery 不需要自动扫描，默认false 和 true时和include 一起使用
   const { noDiscovery, holdUntilCrawlEnd } = options
 
-  // 元数据 一些hash
+  // meatdata元数据和一些hash
   let metadata: DepOptimizationMetadata = initDepsOptimizerMetadata(
     environment,
     sessionTimestamp,
@@ -164,7 +164,7 @@ export function createDepsOptimizer(
     const cachedMetadata = await loadCachedDepOptimizationMetadata(environment)
 
     firstRunCalled = !!cachedMetadata
-
+    debugger
     metadata = depsOptimizer.metadata =
       cachedMetadata || initDepsOptimizerMetadata(environment, sessionTimestamp)
 
@@ -194,7 +194,7 @@ export function createDepsOptimizer(
         })
         newDepsDiscovered = true
       }
-
+      // 这个要看 好像是等待预构建之后 写入metadata.json文件
       environment.waitForRequestsIdle().then(onCrawlEnd)
 
       if (noDiscovery) {
@@ -208,6 +208,7 @@ export function createDepsOptimizer(
           // 在后台运行，以防阻塞高优先级任务
           ;(async () => {
             try {
+              debugger
               debug?.(colors.green(`scanning for dependencies...`))
               // 包名:nodemodules里面的具体文件.js
               let deps: Record<string, string>
@@ -242,6 +243,7 @@ export function createDepsOptimizer(
               for (const id of Object.keys(deps)) {
                 if (!metadata.discovered[id]) {
                   // 为每个依赖在metadata添加信息
+                  // src是node_modules里的文件路径 file是vite缓存后的文件路径
                   addMissingDep(id, deps[id])
                 }
               }
@@ -254,7 +256,7 @@ export function createDepsOptimizer(
               // debugger
               // 运行这个步骤之后 多个.vite文件夹 和下面的/deps_temp_efb3d972 文件夹 以及下面的package.json 文件
               optimizationResult = runOptimizeDeps(environment, knownDeps)
-
+              debugger
               // If the holdUntilCrawlEnd strategy is used, we wait until crawling has
               // ended to decide if we send this result to the browser or we need to
               // do another optimize step

@@ -152,6 +152,7 @@ export class DevEnvironment extends BaseEnvironment {
     } else if (isDepOptimizationDisabled(optimizeDeps)) {
       this.depsOptimizer = undefined
     } else {
+      debugger
       this.depsOptimizer = (
         optimizeDeps.noDiscovery // 有optimizeDeps:{noDiscovery:true} 选项的话
           ? createExplicitDepsOptimizer
